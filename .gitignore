@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+node_modules/
+*.pfx
+*.p12
+Copilot-FinOps/03_Collector/*.cer
+Copilot-FinOps/06_Daten/out/*
+!Copilot-FinOps/06_Daten/out/LIESMICH.txt
+Copilot-FinOps/06_Daten/import/**/*.csv

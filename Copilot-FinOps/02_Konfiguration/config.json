@@ -1,0 +1,52 @@
+{
+  "TenantId": "<TENANT-ID>",
+  "ClientId": "<APP-CLIENT-ID>",
+  "CertificateThumbprint": "<ZERTIFIKAT-FINGERABDRUCK>",
+  "OutputPath": "..\\06_Daten\\out",
+  "CatalogPath": "lizenzkatalog.json",
+  "DepartmentAttribute": "department",
+  "MinGroupSize": 5,
+  "InactiveDays": 30,
+  "MonthsBack": 12,
+  "EnabledSources": [
+    "Graph"
+  ],
+  "ProduktIds": {
+    "PremiumLizenz": "M365-COPILOT",
+    "ChatBasis": "M365-COPILOT-CHAT",
+    "GitHubSeats": "GH-COPILOT-BUS"
+  },
+  "AzureMode": "Export",
+  "AzureExportFolder": "..\\06_Daten\\import\\azure-export",
+  "AzureExportColumnMap": {
+    "Date": "Date",
+    "MeterCategory": "MeterCategory",
+    "MeterName": "MeterName",
+    "ServiceName": "ConsumedService",
+    "Location": "ResourceLocation",
+    "Tags": "Tags",
+    "Cost": "CostInBillingCurrency",
+    "Quantity": "Quantity",
+    "Currency": "BillingCurrencyCode"
+  },
+  "AzureScopes": [
+    "/subscriptions/<AZURE-ABO-ID>"
+  ],
+  "CostCenterTag": "<TAG-NAME-KOSTENSTELLE>",
+  "CostApiVersion": "2023-11-01",
+  "PpacImportFolder": "..\\06_Daten\\import\\ppac",
+  "PpacProduktId": "CS-CAPACITY",
+  "PpacColumnMap": {
+    "Date": "<SPALTE-DATUM>",
+    "Environment": "<SPALTE-UMGEBUNG>",
+    "Agent": "<SPALTE-AGENT>",
+    "Credits": "<SPALTE-CREDITS>"
+  },
+  "EnvironmentToDepartment": {
+    "<UMGEBUNGSNAME-1>": "<FACHBEREICH-1>"
+  },
+  "CsvDelimiter": ";",
+  "GitHubOrg": "",
+  "GitHubApiVersion": "2022-11-28",
+  "GitHubDefaultDepartment": "IT"
+}

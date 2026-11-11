@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Copilot-FinOps-Dashboard</title>
+<style>
+:root{--bg:#f5f7fa;--card:#fff;--tx:#1f2937;--mu:#6b7280;--bd:#e5e7eb;--ac:#2563eb;--ok:#16a34a;--wa:#d97706;--er:#dc2626}
+[data-theme=dark]{--bg:#0f172a;--card:#1e293b;--tx:#e2e8f0;--mu:#94a3b8;--bd:#334155;--ac:#60a5fa;--ok:#4ade80;--wa:#fbbf24;--er:#f87171}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--card);border-bottom:1px solid var(--bd)}
+h1{font-size:18px;margin:0}h2{font-size:15px;margin:0 0 10px}
+nav button,.btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 12px;border-radius:6px;cursor:pointer;font:inherit}
+nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+button:focus-visible,select:focus,input:focus{outline:2px solid var(--ac);outline-offset:1px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;padding:12px 22px}
+.filters label{display:flex;flex-direction:column;font-size:12px;color:var(--mu)}
+select,input{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:5px;font:inherit}
+main{padding:0 22px 30px}.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))}
+.kpis{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;overflow-x:auto}
+.kpi .v{font-size:22px;font-weight:600}.kpi .l{color:var(--mu);font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left}
+td.n,th.n{text-align:right}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.tag{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--bd);font-weight:400}.warn{color:var(--wa)}.err{color:var(--er)}.ok{color:var(--ok)}
+svg text{fill:var(--mu);font-size:11px}.hidden{display:none}.note{color:var(--mu);font-size:12px;margin-top:8px}
+@media print{header nav,.filters,.btn{display:none}body{background:#fff;color:#000}.card{break-inside:avoid;border-color:#ccc}.page{display:block!important}}
+</style></head><body>
+<header><h1>Copilot-FinOps-Dashboard <span class="tag" id="stand"></span></h1>
+<nav id="nav"><button type="button" data-p="uebersicht" class="on">Übersicht</button><button type="button" data-p="lizenzen">Lizenzen &amp; User</button><button type="button" data-p="credits">Credits &amp; Verbrauch</button><button type="button" data-p="katalog">Lizenzkatalog</button></nav>
+<div><button type="button" class="btn" id="csv">CSV-Export</button> <button type="button" class="btn" id="print">Drucken</button> <button type="button" class="btn" id="theme">Hell/Dunkel</button>
+<button type="button" class="btn" id="load" title="facts.json, lizenzkatalog.json, budget.json, kapazitaet.json (Mehrfachauswahl)">Daten laden</button><input type="file" id="file" accept=".json,application/json" multiple hidden></div></header>
+<div class="filters">
+<label>Von<input type="month" id="fVon"></label><label>Bis<input type="month" id="fBis"></label>
+<label>Produktfamilie<select id="fProd"></select></label><label>Fachbereich<select id="fFb"></select></label>
+<label>Währung<select id="fCur"></select></label><label>Region<select id="fReg"></select></label><label>Abrechnungsart<select id="fArt"></select></label></div>
+<main>
+<p id="status" class="note" role="status" aria-live="polite"></p>
+<p class="note">Jahreswerte beziehen sich auf Januar bis zum letzten ausgewählten Ist-Monat; übrige Filter gelten weiter. Budgets sind Jahresbudgets in der Standardwährung. Fremdwährungen werden getrennt angezeigt; es findet keine Umrechnung statt.</p>
+<section class="page" id="p-uebersicht">
+ <div class="kpis" id="kpis"></div>
+ <div class="grid"><div class="card"><h2>Kosten je Monat inkl. Forecast bis Jahresende</h2><div id="chTrend"></div></div>
+ <div class="card"><h2>Kosten nach Produktfamilie</h2><div id="chProd"></div></div>
+ <div class="card"><h2>Budget vs. Ist je Fachbereich (letztes ausgewähltes Jahr)</h2><div id="tbBudget"></div></div>
+ <div class="card"><h2>Kosten nach Abrechnungsart</h2><div id="chArt"></div><h2 style="margin-top:14px">Kosten nach Region</h2><div id="chReg"></div></div></div>
+</section>
+<section class="page hidden" id="p-lizenzen"><div class="grid">
+ <div class="card"><h2>Auslastung zugewiesener Lizenzen (letzter Monat)</h2><div id="tbLiz"></div></div>
+ <div class="card"><h2>Unlizenzierte Nutzer mit Copilot-/Agent-Verbrauch</h2><div id="tbUnl"></div>
+ <p class="note">Aggregiert je Fachbereich – keine personenbezogene Auswertung (Betriebsrat/DSGVO).</p></div></div></section>
+<section class="page hidden" id="p-credits"><div class="grid">
+ <div class="card"><h2 id="capacityTitle">Kapazität und Verbrauch</h2><p class="note">Die konfigurierte Kapazität ist ein gemeinsamer Pool. Filter zeigen einen Teilverbrauch, keine zugeteilte Fachbereichskapazität.</p><div id="credKpi"></div><div id="chCred"></div></div>
+ <div class="card"><h2>Verbrauch je Agent / Umgebung</h2><div id="tbAgent"></div></div>
+ <div class="card"><h2>Verbrauchskosten (PAYG) je Fachbereich</h2><div id="chPayg"></div></div></div></section>
+<section class="page hidden" id="p-katalog"><div class="card"><h2>Lizenzkatalog (aus lizenzkatalog.json – ohne Code-Änderung erweiterbar)</h2><div id="tbKat"></div>
+<p class="note">Preise mit „[prüfen]“ werden mit 0 gerechnet und in den KPIs als „Produkte ohne Preis“ gezählt.</p></div></section>
+</main>
+<script>
+"use strict";
+(()=>{
+/* ===== Beispieldaten – werden durch geladene Dateien ersetzt =====
+   Demo-Preise sind fiktive Rechenwerte NUR für die Vorschau, keine Microsoft-Preise. */
+const DEMO_CATALOG={waehrungStandard:"EUR",produkte:[
+ {produktId:"M365-COPILOT",produkt:"Microsoft 365 Copilot",produktfamilie:"M365 Copilot",abrechnungsart:"ProUser",einheit:"User/Monat",kundenpreis:"[prüfen]",demoPreis:30,waehrung:"EUR",gueltigAb:"2026-01-01",gueltigBis:null,datenquelle:"Graph"},
+ {produktId:"M365-COPILOT-CHAT",produkt:"Copilot Chat",produktfamilie:"M365 Copilot",abrechnungsart:"Kostenfrei",einheit:"User",kundenpreis:0,waehrung:"EUR",gueltigAb:"2026-01-01",datenquelle:"Graph"},
+ {produktId:"M365-COPILOT-CHAT-PAYG",produkt:"Copilot Chat Agents (PAYG)",produktfamilie:"M365 Copilot",abrechnungsart:"Verbrauch",einheit:"Message",kundenpreis:"[prüfen]",demoPreis:0.01,waehrung:"EUR",gueltigAb:"2026-01-01",datenquelle:"AzureCostManagement"},
+ {produktId:"CS-CAPACITY",produkt:"Copilot Studio Capacity Pack",produktfamilie:"Copilot Studio",abrechnungsart:"Kapazitaet",einheit:"Credit",kapazitaetJeEinheit:"[prüfen]",demoKapazitaet:25000,kundenpreis:"[prüfen]",demoPreis:0.008,waehrung:"EUR",gueltigAb:"2026-01-01",datenquelle:"PPAC-CSV"},
+ {produktId:"AZ-OPENAI",produkt:"Azure OpenAI / Foundry",produktfamilie:"Azure AI",abrechnungsart:"Verbrauch",einheit:"Kostenwert",kundenpreis:1,waehrung:"EUR",gueltigAb:"2026-01-01",datenquelle:"AzureCostManagement"},
+ {produktId:"GH-COPILOT-BUS",produkt:"GitHub Copilot Business",produktfamilie:"GitHub Copilot",abrechnungsart:"ProUser",einheit:"Seat/Monat",kundenpreis:"[prüfen]",demoPreis:18,waehrung:"EUR",gueltigAb:"2026-01-01",datenquelle:"GitHubAPI"}]};
+const DEMO_BUDGET={"Vertrieb":30000,"Personal":9000,"IT":40000,"Finanzen":12000,"Produktion":15000};
+function demoFacts(){const f=[],fb=["Vertrieb","Personal","IT","Finanzen","Produktion"],reg=["DE","AT","CH"];let s=7;const r=()=>(s=(s*9301+49297)%233280)/233280;
+ for(let m=1;m<=10;m++){const mo="2026-"+String(m).padStart(2,"0");
+  fb.forEach((d,i)=>{const R=reg[i%3],z=20+i*15+m*2,a=Math.round(z*(0.55+r()*0.35));
+   f.push({monat:mo,produktId:"M365-COPILOT",fachbereich:d,region:R,menge:z,zugewiesen:z,aktiv:a});
+   f.push({monat:mo,produktId:"M365-COPILOT-CHAT",fachbereich:d,region:R,menge:40+i*10,unlizenziert:40+i*10});
+   f.push({monat:mo,produktId:"M365-COPILOT-CHAT-PAYG",fachbereich:d,region:R,menge:Math.round(3000+r()*9000*m/4)});
+   ["Kundenservice-Agent","HR-FAQ-Agent","Angebots-Agent"].forEach((ag,k)=>{if((i+k)%2)f.push({monat:mo,produktId:"CS-CAPACITY",fachbereich:d,region:R,menge:Math.round(2000+r()*6000),agent:ag,umgebung:"Prod-"+d});});
+   if(d==="IT"||d==="Produktion"){f.push({monat:mo,produktId:"AZ-OPENAI",fachbereich:d,region:"westeurope",menge:Math.round(800+r()*1500),kostenIst:null});
+    f.push({monat:mo,produktId:"GH-COPILOT-BUS",fachbereich:d,region:"Global",menge:25,zugewiesen:25,aktiv:Math.round(15+r()*9)});}});}
+ return f;}
+
+/* ===== Zustand und lokale Importprüfung ===== */
+let CAT=DEMO_CATALOG,FACTS=demoFacts(),BUDGET=DEMO_BUDGET,CAP={produktId:"CS-CAPACITY",packs:4},DEMO=true;
+let productIndex=new Map(),haveFacts=false,haveCatalog=false,importMessage="";
+const $=id=>document.getElementById(id);
+const idKey=id=>String(id??"").toLowerCase();
+const own=(o,k)=>Object.hasOwn(o,k),record=o=>o!==null&&typeof o==="object"&&!Array.isArray(o);
+const validMonth=s=>typeof s==="string"&&/^[1-9]\d{3}-(0[1-9]|1[0-2])$/.test(s);
+const validDate=s=>typeof s==="string"&&/^[1-9]\d{3}-\d{2}-\d{2}$/.test(s)&&!Number.isNaN(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
+const finite=v=>typeof v==="number"&&Number.isFinite(v);
+const standard=()=>CAT.waehrungStandard||"EUR",cur=()=>$("fCur").value||standard();
+const money=(v,c=cur())=>(finite(v)?v:0).toLocaleString("de-DE",{style:"currency",currency:c,maximumFractionDigits:2});
+const eur=v=>money(v),num=v=>(finite(v)?v:0).toLocaleString("de-DE",{maximumFractionDigits:0});
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ART=Object.assign(Object.create(null),{ProUser:"Lizenz (pro User)",Kapazitaet:"Kapazität",Verbrauch:"Verbrauch (PAYG)",Kostenfrei:"Kostenfrei"});
+const COLORS=["#2563eb","#0d9488","#7c3aed","#d97706","#64748b","#db2777","#059669","#9333ea"];
+function requireText(v,label){if(typeof v!=="string"||!v.trim()||v.includes("\u0000"))throw Error(label+": Text fehlt oder ist ungültig.");return v;}
+function validateCatalog(j){
+ if(!record(j)||!Array.isArray(j.produkte)||!/^([A-Z]{3})$/.test(j.waehrungStandard||""))throw Error("Katalog: produkte und dreistellige waehrungStandard erforderlich.");
+ const ids=new Set();for(const p of j.produkte){if(!record(p))throw Error("Katalog: Ungültiger Produkteintrag.");
+  for(const k of["produktId","produkt","produktfamilie","einheit","datenquelle"])requireText(p[k],"Katalog "+k);
+  if(ids.has(idKey(p.produktId)))throw Error("Katalog: doppelte produktId "+p.produktId);ids.add(idKey(p.produktId));
+  if(!own(ART,p.abrechnungsart))throw Error("Katalog: Ungültige Abrechnungsart.");
+  if(!/^[A-Z]{3}$/.test(p.waehrung||""))throw Error("Katalog: Währung fehlt oder ist ungültig.");
+  if(!validDate(p.gueltigAb)||(p.gueltigBis!=null&&(!validDate(p.gueltigBis)||p.gueltigBis<p.gueltigAb)))throw Error("Katalog: Ungültiger Gültigkeitszeitraum.");
+  for(const k of["kundenpreis","listenpreis","kapazitaetJeEinheit"]){const v=p[k];if(v!=null&&v!=="[prüfen]"&&(!finite(v)||v<0||(k==="kapazitaetJeEinheit"&&v===0)))throw Error("Katalog: "+k+" muss eine gültige Zahl oder [prüfen] sein (Kapazität positiv, Preise nichtnegativ).");}
+  if(p.preisbasis!=null&&!["Monat","Jahr","Einheit"].includes(p.preisbasis))throw Error("Katalog: Ungültige Preisbasis.");
+ }return j;
+}
+function validateFacts(j){if(!Array.isArray(j))throw Error("Fakten müssen ein JSON-Array sein.");
+ return j.map((f,i)=>{const at="Fakten, Zeile "+(i+1);if(!record(f)||!validMonth(f.monat))throw Error(at+": monat muss YYYY-MM sein.");requireText(f.produktId,at+" produktId");
+  if(!finite(f.menge)||Math.abs(f.menge)>Number.MAX_SAFE_INTEGER||(f.menge<0&&!finite(f.kostenIst)))throw Error(at+": menge muss eine sichere Zahl sein; negative Mengen benötigen einen Ist-Kostenbetrag.");
+  if(f.kostenIst!=null&&!finite(f.kostenIst))throw Error(at+": kostenIst muss eine endliche Zahl sein.");
+  for(const k of["zugewiesen","aktiv","unlizenziert"])if(f[k]!=null&&(!finite(f[k])||f[k]<0||!Number.isSafeInteger(f[k])))throw Error(at+": "+k+" muss eine nichtnegative ganze Zahl sein.");
+  if(f.aktiv!=null&&f.zugewiesen!=null&&f.aktiv>f.zugewiesen)throw Error(at+": aktiv darf zugewiesen nicht überschreiten.");
+  for(const k of["fachbereich","region","agent","umgebung","quelle"])if(f[k]!=null&&(typeof f[k]!=="string"||f[k].includes("\u0000")))throw Error(at+": "+k+" muss Text sein.");
+  if(f.waehrung!=null&&!/^[A-Z]{3}$/.test(f.waehrung))throw Error(at+": Ungültige Währung.");return {...f};
+ });
+}
+function validateBudget(j){if(!record(j)||Object.values(j).some(v=>!finite(v)||v<0))throw Error("Budget: Objekt mit nichtnegativen Zahlen je Fachbereich erwartet.");if(!Number.isFinite(Object.values(j).reduce((a,b)=>a+b,0)))throw Error("Budget: Summe überschreitet den Zahlenbereich.");return Object.assign(Object.create(null),j);}
+function validateCapacity(j){if(!record(j)||typeof j.produktId!=="string"||!j.produktId.trim()||!Number.isSafeInteger(j.packs)||j.packs<0)throw Error("Kapazität: produktId und nichtnegative ganze packs erforderlich.");return {produktId:j.produktId,packs:j.packs};}
+const produkt=id=>productIndex.get(idKey(id));
+/* Für Monatswerte gilt der Katalog am Monatsersten; Jahres-Lizenzpreise werden durch 12 geteilt. */
+function preis(p,monat,demo=DEMO){if(!p||!validMonth(monat))return null;const datum=monat+"-01";
+ if((p.gueltigAb&&datum<p.gueltigAb)||(p.gueltigBis&&datum>p.gueltigBis))return null;
+ for(const k of["kundenpreis","listenpreis"]){const v=p[k];if(finite(v))return v/(p.preisbasis==="Jahr"&&p.abrechnungsart==="ProUser"?12:1);}
+ return demo&&finite(p.demoPreis)?p.demoPreis:null;
+}
+function prepare(cat,facts,demo){const index=new Map(cat.produkte.map(p=>[idKey(p.produktId),p])),totals=new Map();
+ const rows=facts.map(f=>{const p=index.get(idKey(f.produktId)),pr=preis(p,f.monat,demo),actual=finite(f.kostenIst),currency=f.waehrung||p?.waehrung||cat.waehrungStandard;
+  const currencyMismatch=!actual&&pr!==null&&p?.waehrung!==currency,effectivePrice=currencyMismatch?null:pr;
+  const cost=actual?f.kostenIst:effectivePrice==null?0:effectivePrice*f.menge,total=(totals.get(currency)||0)+Math.abs(cost);
+  if(!finite(cost)||!finite(total)||total>Number.MAX_SAFE_INTEGER)throw Error("Fakten: Kosten überschreiten den sicher darstellbaren Zahlenbereich.");totals.set(currency,total);
+  return {...f,fachbereich:f.fachbereich||"Nicht zugeordnet",region:f.region||"Unbekannt",_fam:p?.produktfamilie||"Unbekannt",_art:p?.abrechnungsart||"Unbekannt",_cur:currency,
+   _k:cost,_currencyMismatch:currencyMismatch,_preisFehlt:p?.abrechnungsart!=="Kostenfrei"&&!actual&&effectivePrice==null};
+ });return {index,rows};
+}
+function enrich(){const prepared=prepare(CAT,FACTS,DEMO);productIndex=prepared.index;FACTS=prepared.rows;}
+
+function opts(sel,vals){sel.innerHTML='<option value="">Alle</option>'+[...new Set(vals)].filter(Boolean).sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");}
+function initFilters(){const ms=FACTS.map(f=>f.monat).sort();$("fVon").value=ms[0]||"";$("fBis").value=ms.at(-1)||"";
+ opts($("fProd"),FACTS.map(f=>f._fam));opts($("fFb"),FACTS.map(f=>f.fachbereich));opts($("fReg"),FACTS.map(f=>f.region));
+ $("fArt").innerHTML='<option value="">Alle</option>'+Object.entries(ART).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
+ const cs=[...new Set(FACTS.map(f=>f._cur))].sort();if(!cs.length)cs.push(standard());
+ $("fCur").innerHTML=cs.map(c=>`<option>${esc(c)}</option>`).join("");$("fCur").value=cs.includes(standard())?standard():cs[0];
+}
+function filtered(ignoreDates=false){let v=$("fVon").value,b=$("fBis").value;if(v&&b&&v>b)[v,b]=[b,v];
+ const pr=$("fProd").value,fb=$("fFb").value,rg=$("fReg").value,a=$("fArt").value,c=cur();
+ return FACTS.filter(f=>(ignoreDates||((!v||f.monat>=v)&&(!b||f.monat<=b)))&&(!pr||f._fam===pr)&&(!fb||f.fachbereich===fb)&&(!rg||f.region===rg)&&(!a||f._art===a)&&f._cur===c);
+}
+const sumBy=(arr,key,val=f=>f._k)=>arr.reduce((m,f)=>{const k=typeof key==="function"?key(f):f[key];m[k]=(m[k]||0)+val(f);return m;},Object.create(null));
+/* SVGs bleiben vollständig offline; negative Gutschriften erhalten eine eigene Nullachse. */
+function barChart(el,data,{fmt=eur,colorIdx=null}={}){const entries=Object.entries(data).filter(([,v])=>finite(v));
+ if(!entries.length){el.innerHTML='<p class="note">Keine Daten</p>';return;}entries.sort((a,b)=>b[1]-a[1]);
+ const e=entries.slice(0,30),W=560,L=150,R=100,bh=22,min=e.reduce((m,x)=>Math.min(m,x[1]),0),max=e.reduce((m,x)=>Math.max(m,x[1]),1),scale=(W-L-R)/(max-min),zero=L-min*scale;
+ el.innerHTML=`<svg viewBox="0 0 ${W} ${e.length*(bh+6)+10}" width="100%" role="img" aria-label="Balkendiagramm">`+e.map(([k,v],i)=>{const w=Math.abs(v)*scale,y=i*(bh+6)+5,x=v<0?zero-w:zero;
+  return `<text x="${L-6}" y="${y+bh*.7}" text-anchor="end">${esc(k.slice(0,24))}</text><rect x="${x}" y="${y}" width="${w}" height="${bh}" rx="3" fill="${COLORS[(colorIdx??i)%COLORS.length]}"><title>${esc(k)}: ${esc(fmt(v))}</title></rect><text x="${Math.max(zero,x+w)+6}" y="${y+bh*.7}">${esc(fmt(v))}</text>`;}).join("")+"</svg>"+(entries.length>30?'<p class="note">Die 30 größten Positionen; vollständige Daten im CSV-Export.</p>':"");
+}
+function lineChart(el,series,fc,{cap=null}={}){const ks=[...new Set([...Object.keys(series),...Object.keys(fc)])].sort();
+ if(!ks.length){el.innerHTML='<p class="note">Keine Daten</p>';return;}
+ const values=[...Object.values(series),...Object.values(fc)],W=560,H=230,L=60,B=30,max=values.reduce((a,b)=>Math.max(a,b),Math.max(cap??0,1))*1.1,min=values.reduce((a,b)=>Math.min(a,b),0)*1.1;
+ const serial=k=>+k.slice(0,4)*12 + +k.slice(5)-1,span=serial(ks.at(-1))-serial(ks[0]);
+ const x=i=>L+(W-L-10)*(span===0?.5:(serial(ks[i])-serial(ks[0]))/span),y=v=>H-B-(H-B-10)*(v-min)/(max-min);
+ const pts=o=>ks.map((k,i)=>own(o,k)?`${x(i)},${y(o[k])}`:null).filter(Boolean).join(" ");let g="";
+ for(let t=0;t<=4;t++){const v=min+(max-min)*t/4;g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--bd)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${max>=10000?num(v/1000)+"k":num(v)}</text>`;}
+ ks.forEach((k,i)=>{if(i%Math.ceil(ks.length/8)===0)g+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle">${k.slice(2)}</text>`;});
+ if(cap!==null)g+=`<line x1="${L}" x2="${W}" y1="${y(cap)}" y2="${y(cap)}" stroke="var(--er)" stroke-dasharray="5 4"/><text x="${W-4}" y="${y(cap)-4}" text-anchor="end">Kapazität</text>`;
+ const last=Object.keys(series).sort().at(-1),connected=last&&Object.keys(fc).length?{[last]:series[last],...fc}:{};
+ el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Verlauf">${g}<polyline fill="none" stroke="${COLORS[0]}" stroke-width="2.5" points="${pts(series)}"/><polyline fill="none" stroke="${COLORS[3]}" stroke-width="2" stroke-dasharray="6 4" points="${pts(connected)}"/></svg><p class="note">Blau: Ist · Orange gestrichelt: Forecast (linearer Trend innerhalb der letzten 3 Kalendermonate; mindestens 2 Ist-Werte erforderlich).</p>`;
+}
+function forecast(series){const ks=Object.keys(series).sort();if(!ks.length)return{};const last=ks.at(-1),[Y,M]=last.split("-").map(Number);
+ const recent=ks.filter(k=>k.startsWith(Y+"-")&&+k.slice(5)>=M-2);if(recent.length<2)return{};
+ const first=recent[0],slope=(series[last]-series[first])/(M-+first.slice(5)),out={};
+ for(let m=M+1;m<=12;m++)out[`${Y}-${String(m).padStart(2,"0")}`]=Math.max(0,series[last]+slope*(m-M));return out;
+}
+function table(el,head,rows,numCols=[]){el.innerHTML=rows.length?`<table><thead><tr>${head.map((h,i)=>`<th scope="col" class="${numCols.includes(i)?"n":""}">${h}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,500).map(r=>`<tr>${r.map((c,i)=>`<td class="${numCols.includes(i)?"n":""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`+(rows.length>500?'<p class="note">Anzeige auf 500 Zeilen begrenzt; vollständige Daten im CSV-Export.</p>':""):'<p class="note">Keine Daten</p>';}
+function render(){const F=filtered(),lastM=F.reduce((m,f)=>f.monat>m?f.monat:m,""),yr=lastM.slice(0,4),fbSel=$("fFb").value;
+ const annual=filtered(true).filter(f=>f.monat.startsWith(yr)&&f.monat<=lastM),perM=sumBy(F,"monat"),fc=forecast(sumBy(annual,"monat")),total=F.reduce((s,f)=>s+f._k,0);
+ const ytd=annual.reduce((s,f)=>s+f._k,0),forecastAvailable=lastM.endsWith("-12")||Object.keys(fc).length>0,fcSum=Object.values(fc).reduce((a,b)=>a+b,0);
+ const budgets=cur()===standard()?BUDGET:Object.create(null),budgetEntries=Object.entries(budgets).filter(([k])=>!fbSel||k===fbSel),budgetTot=budgetEntries.reduce((s,[,v])=>s+v,0),hasBudget=budgetEntries.length>0;
+ const pf=new Set(F.filter(f=>f._preisFehlt).map(f=>idKey(f.produktId))).size,quote=hasBudget&&budgetTot>0&&forecastAvailable?(ytd+fcSum)/budgetTot:null;
+ const amp=quote==null?"warn":quote>1?"err":quote>.9?"warn":"ok";
+ $("kpis").innerHTML=[["Kosten im Zeitraum",eur(total)],["Ist YTD "+(yr||"–"),eur(ytd)],["Hochrechnung Jahresende",forecastAvailable?eur(ytd+fcSum):"nicht verfügbar"],
+  ["Budget "+(yr||"–"),hasBudget?`${eur(budgetTot)} <span class="${amp}">● ${quote==null?"–":Math.round(quote*100)+" %"}</span>`:"nicht hinterlegt"],["Produkte ohne Preis",`<span class="${pf?"warn":"ok"}">${pf}</span>`]]
+  .map(([l,v])=>`<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+ lineChart($("chTrend"),perM,fc);barChart($("chProd"),sumBy(F,"_fam"));barChart($("chArt"),sumBy(F,f=>ART[f._art]||f._art));barChart($("chReg"),sumBy(F,"region"),{colorIdx:2});
+ const fbY=sumBy(annual,"fachbereich");table($("tbBudget"),["Fachbereich","Budget","Ist YTD","Ausschöpfung","Status"],[...new Set([...Object.keys(budgets),...Object.keys(fbY)])].filter(k=>!fbSel||k===fbSel).sort().map(k=>{
+  const has=own(budgets,k),b=budgets[k],i=fbY[k]||0,q=has&&b>0?i/b:null,c=!has?"warn":(b===0?i>0:q>1)?"err":q>.9?"warn":"ok";
+  return[esc(k),has?eur(b):"nicht hinterlegt",eur(i),q==null?(has&&b===0?(i>0?"überschritten":"0 %"):"–"):Math.round(q*100)+" %",`<span class="${c}">${c==="err"?"überschritten":c==="warn"?"prüfen":"im Rahmen"}</span>`];}),[1,2,3]);
+ const lz=Object.create(null);F.filter(f=>f.monat===lastM&&f._art==="ProUser"&&f.zugewiesen>0).forEach(f=>{const k=JSON.stringify([idKey(f.produktId),f.fachbereich]);
+  lz[k]??={p:produkt(f.produktId)?.produkt||f.produktId,fb:f.fachbereich,z:0,a:0,unknown:false,pr:produkt(f.produktId)?.waehrung===cur()?preis(produkt(f.produktId),f.monat):null};lz[k].z+=f.zugewiesen;lz[k].a+=f.aktiv??0;lz[k].unknown||=f.aktiv==null;
+ });
+ table($("tbLiz"),["Produkt","Fachbereich","Zugewiesen","Aktiv","Auslastung","Inaktiv","Einsparpotenzial/Monat"],Object.values(lz).map(r=>{const q=r.z?r.a/r.z:0,c=q<.6?"err":q<.8?"warn":"ok";
+  return[esc(r.p),esc(r.fb),num(r.z),r.unknown?"nicht verfügbar":num(r.a),r.unknown?"–":`<span class="${c}">${Math.round(q*100)} %</span>`,r.unknown?"–":num(r.z-r.a),r.unknown?"–":r.pr==null?'<span class="warn">[Preis prüfen]</span>':eur((r.z-r.a)*r.pr)];}),[2,3,4,5,6]);
+ const payg=sumBy(F.filter(f=>f.monat===lastM&&f._art==="Verbrauch"),"fachbereich");
+ table($("tbUnl"),["Fachbereich","Unlizenzierte aktive Nutzer","PAYG-Kosten (Monat)"],Object.entries(sumBy(F.filter(f=>f.monat===lastM&&f.unlizenziert!=null),"fachbereich",f=>f.unlizenziert)).map(([k,v])=>[esc(k),num(v),eur(payg[k]||0)]),[1,2]);
+ const capacityIds=[...new Set(F.filter(f=>f._art==="Kapazitaet").map(f=>idKey(f.produktId)))];
+ const capacityId=CAP?idKey(CAP.produktId):capacityIds.length===1?capacityIds[0]:null,cp=produkt(capacityId);
+ const C=capacityId&&cp?.abrechnungsart==="Kapazitaet"?F.filter(f=>idKey(f.produktId)===capacityId):[],unit=cp?.einheit||"Einheiten";
+ $("capacityTitle").textContent=cp?cp.produkt+" – Kapazität und Verbrauch":"Kapazität und Verbrauch";
+ const jeEinheit=finite(cp?.kapazitaetJeEinheit)?cp.kapazitaetJeEinheit:DEMO?cp?.demoKapazitaet:null;
+ const capM=finite(jeEinheit)&&CAP&&cp?.abrechnungsart==="Kapazitaet"?jeEinheit*CAP.packs:null,cM=sumBy(C,"monat",f=>f.menge),used=cM[lastM]||0,cfc=forecast(cM),hit=capM!==null?Object.entries(cfc).find(([,v])=>v>capM):null;
+ const hitLabel=capM===null?"–":used>capM?"bereits überschritten":hit?hit[0]:(lastM.endsWith("-12")||Object.keys(cfc).length)?"keine":"nicht verfügbar";
+ $("credKpi").innerHTML=`<div class="kpis"><div class="card kpi"><div class="l">Kapazität/Monat</div><div class="v">${capM!==null?num(capM):'<span class="warn">[prüfen]</span>'}</div></div><div class="card kpi"><div class="l">Verbraucht ${esc(lastM)} (${esc(unit)})</div><div class="v">${num(used)}</div></div><div class="card kpi"><div class="l">Restkapazität</div><div class="v ${capM!==null&&used>capM?"err":""}">${capM!==null?num(capM-used):"–"}</div></div><div class="card kpi"><div class="l">Prognose Überschreitung</div><div class="v ${capM!==null&&(hit||used>capM)?"warn":""}">${esc(hitLabel)}</div></div></div>`;
+ lineChart($("chCred"),cM,cfc,{cap:capM});const ag=Object.create(null);C.forEach(f=>{const k=JSON.stringify([f.agent||"–",f.umgebung||"–",f.fachbereich]);ag[k]=(ag[k]||0)+f.menge;});
+ table($("tbAgent"),["Agent","Umgebung","Fachbereich",esc(unit)],Object.entries(ag).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[...JSON.parse(k).map(esc),num(v)]),[3]);barChart($("chPayg"),sumBy(F.filter(f=>f._art==="Verbrauch"),"fachbereich"),{colorIdx:1});
+ table($("tbKat"),["Produkt-ID","Produkt","Familie","Abrechnung","Einheit","Kundenpreis","Währung","Preisbasis","Gültig ab","Quelle"],CAT.produkte.map(p=>[esc(p.produktId),esc(p.produkt),esc(p.produktfamilie),esc(ART[p.abrechnungsart]||p.abrechnungsart),esc(p.einheit),finite(p.kundenpreis)?p.kundenpreis.toLocaleString("de-DE"):`<span class="warn">${esc(p.kundenpreis)}</span>`,esc(p.waehrung),esc(p.preisbasis||"Monat"),esc(p.gueltigAb),esc(p.datenquelle)]));
+ $("stand").textContent=DEMO?"Beispieldaten – fiktive Demo-Preise":"Stand: "+(lastM||"keine Fakten");
+ const notices=[importMessage];
+ if(!CAP&&capacityIds.length===1)notices.push("Verbrauch für "+cp.produkt+" wird angezeigt; Packanzahl und Kapazität sind unbekannt. Bei Bedarf kapazitaet.json laden.");
+ if(!CAP&&capacityIds.length>1)notices.push("Mehrere Kapazitätsprodukte: Verbrauch wird nicht addiert. kapazitaet.json mit der gewünschten produktId laden oder die Produktauswahl auf genau ein Kapazitätsprodukt eingrenzen.");
+ if(CAP&&cp?.abrechnungsart!=="Kapazitaet")notices.push("Konfiguriertes Kapazitätsprodukt fehlt im Katalog oder ist kein Kapazitätsprodukt; kapazitaet.json und Katalog prüfen.");
+if(annual.some(f=>f._preisFehlt))notices.push("Jahreswerte sind unvollständig: Fehlende Preise werden mit 0 angesetzt.");if(F.some(f=>f._currencyMismatch))notices.push("Preiswährung weicht von der Faktwährung ab; ohne Ist-Kosten wird kein Betrag berechnet. Es findet keine Umrechnung statt.");if(!DEMO&&!haveFacts)notices.push("Noch keine facts.json geladen.");if(!DEMO&&!haveCatalog)notices.push("Noch kein Lizenzkatalog geladen; Produktzuordnung und Preise fehlen.");
+ if(!DEMO&&FACTS.some(f=>!f.waehrung&&!produkt(f.produktId)))notices.push("Währung unbekannter Produkte ohne waehrung wird als Standardwährung angenommen; Quelldaten prüfen.");
+ if(!DEMO&&!Object.keys(BUDGET).length)notices.push("Keine Jahresbudgets geladen.");if(new Set(FACTS.map(f=>f._cur)).size>1)notices.push("Mehrere Währungen: Auswertung zeigt ausschließlich "+cur()+".");
+ if(F.some(f=>!produkt(f.produktId)))notices.push("Unbekannte Produkt-IDs: Katalog ergänzen.");if($("fProd").value||$("fReg").value||$("fArt").value)notices.push("Budget gilt für den gesamten Fachbereich; die Kosten berücksichtigen die aktuelle Auswahl.");
+ $("status").textContent=notices.filter(Boolean).join(" ");
+}
+/* ===== Interaktion ===== */
+$("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#nav button").forEach(x=>{x.classList.toggle("on",x===b);x.setAttribute("aria-pressed",String(x===b));});document.querySelectorAll(".page").forEach(p=>p.classList.toggle("hidden",p.id!=="p-"+b.dataset.p));});
+document.querySelectorAll(".filters input,.filters select").forEach(el=>el.addEventListener("change",render));
+$("theme").addEventListener("click",()=>{const d=document.documentElement;d.dataset.theme=d.dataset.theme==="dark"?"light":"dark";});$("print").addEventListener("click",()=>window.print());
+if(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";
+$("load").addEventListener("click",()=>$("file").click());
+function csvCell(value){let v=value??"";if(typeof v==="number")v=v.toFixed(2).replace(".",",");else if(/^[\s\u0000-\u001f]*[=+@-]/.test(String(v))||/^[\t\r\n]/.test(String(v)))v="'"+v;return '"'+String(v).replace(/"/g,'""')+'"';}
+$("csv").addEventListener("click",()=>{const cols=["monat","produktId","_fam","_art","fachbereich","region","agent","umgebung","menge","_k","_cur"],csv="\ufeff"+["Monat;ProduktId;Produktfamilie;Abrechnungsart;Fachbereich;Region;Agent;Umgebung;Menge;Kosten;Waehrung",...filtered().map(f=>cols.map(c=>csvCell(f[c])).join(";"))].join("\r\n");
+ const a=document.createElement("a"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.href=url;a.download="copilot-kosten-"+cur()+".csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+/* Ein Import wird erst nach vollständiger Prüfung aller ausgewählten Dateien übernommen. */
+$("file").addEventListener("change",async e=>{const files=[...e.target.files];if(!files.length)return;$("load").disabled=true;
+ try{const next=DEMO?{cat:{waehrungStandard:"EUR",produkte:[]},facts:[],budget:Object.create(null),cap:null,haveFacts:false,haveCatalog:false}:{cat:CAT,facts:FACTS,budget:BUDGET,cap:CAP,haveFacts,haveCatalog},seen=new Set();
+  for(const f of files){if(f.size>25*1024*1024)throw Error(f.name+": maximal 25 MB pro Datei.");let j;try{j=JSON.parse((await f.text()).replace(/^\uFEFF/,""));}catch(err){throw Error(f.name+": Ungültiges JSON ("+err.message+").");}
+   let type;if(Array.isArray(j))type="facts";else if(record(j)&&own(j,"produkte"))type="catalog";else if(record(j)&&(own(j,"packs")||own(j,"produktId")))type="capacity";else type="budget";
+   if(seen.has(type))throw Error("Je Import nur eine Datei pro Typ ("+type+").");seen.add(type);
+   if(type==="facts"){next.facts=validateFacts(j);next.haveFacts=true;}else if(type==="catalog"){next.cat=validateCatalog(j);next.haveCatalog=true;}else if(type==="capacity")next.cap=validateCapacity(j);else next.budget=validateBudget(j);
+  }
+  const prepared=prepare(next.cat,next.facts,false),capacityProduct=prepared.index.get(idKey(next.cap?.produktId));
+  if(finite(capacityProduct?.kapazitaetJeEinheit)&&!Number.isSafeInteger(capacityProduct.kapazitaetJeEinheit*next.cap.packs))throw Error("Kapazität: berechnete Credits müssen im sicheren Ganzzahlbereich liegen.");
+  CAT=next.cat;FACTS=prepared.rows;productIndex=prepared.index;BUDGET=next.budget;CAP=next.cap;haveFacts=next.haveFacts;haveCatalog=next.haveCatalog;DEMO=false;importMessage=files.length+" Datei(en) erfolgreich geladen; Beispieldaten wurden ersetzt.";initFilters();render();
+ }catch(err){alert("Import abgebrochen; bisherige Daten bleiben erhalten. "+err.message);}finally{e.target.value="";$("load").disabled=false;}
+});
+enrich();initFilters();render();
+})();
+</script></body></html>

@@ -1,0 +1,1 @@
+Hier legt der Collector facts.json, facts.csv, lizenzkatalog.json und Protokolle ab.

@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lizenzkatalog.schema.json",
+  "title": "Lizenzkatalog Copilot-FinOps",
+  "description": "Zentrale, codefreie Konfiguration aller Produkte, SKUs, Preise und Abrechnungsarten.",
+  "type": "object",
+  "required": [
+    "version",
+    "waehrungStandard",
+    "produkte"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "waehrungStandard": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "produkte": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "produktId",
+          "produkt",
+          "produktfamilie",
+          "skuId",
+          "abrechnungsart",
+          "einheit",
+          "listenpreis",
+          "kundenpreis",
+          "waehrung",
+          "gueltigAb",
+          "datenquelle",
+          "zuordnungsschluessel"
+        ],
+        "properties": {
+          "produktId": {
+            "type": "string",
+            "description": "Eindeutiger interner Schlüssel (Join-Key zur Faktentabelle); genau eine Zeile je produktId (zusätzlich beim Einlesen geprüft).",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "produkt": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "produktfamilie": {
+            "type": "string",
+            "description": "z. B. M365 Copilot, Copilot Studio, Azure AI, GitHub Copilot, Security Copilot, Fremdhersteller",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "hersteller": {
+            "type": "string",
+            "default": "Microsoft"
+          },
+          "skuId": {
+            "type": "string",
+            "description": "SKU-GUID (Graph skuId) bzw. Meter-ID; '[prüfen]' wenn unbekannt"
+          },
+          "partNumber": {
+            "type": "string",
+            "description": "skuPartNumber / Artikelnummer"
+          },
+          "abrechnungsart": {
+            "enum": [
+              "ProUser",
+              "Kapazitaet",
+              "Verbrauch",
+              "Kostenfrei"
+            ]
+          },
+          "einheit": {
+            "type": "string",
+            "description": "z. B. User/Monat, Credit, Message, SCU/Stunde, Premium Request",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "kapazitaetJeEinheit": {
+            "oneOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "const": "[prüfen]"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Positive Kapazität je Einheit, null oder [prüfen] bei unbekannter Kapazität."
+          },
+          "listenpreis": {
+            "oneOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "const": "[prüfen]"
+              }
+            ],
+            "description": "Zahl oder '[prüfen]'"
+          },
+          "kundenpreis": {
+            "oneOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "const": "[prüfen]"
+              }
+            ],
+            "description": "Zahl oder '[prüfen]'; hat Vorrang vor listenpreis"
+          },
+          "waehrung": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO-Währung des Preises. Beträge verschiedener Währungen dürfen ohne Wechselkurs nicht summiert werden."
+          },
+          "preisbasis": {
+            "enum": [
+              "Monat",
+              "Jahr",
+              "Einheit"
+            ],
+            "default": "Monat"
+          },
+          "gueltigAb": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "gueltigBis": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "datenquelle": {
+            "enum": [
+              "Graph",
+              "AzureCostManagement",
+              "PPAC-CSV",
+              "GitHubAPI",
+              "Manuell"
+            ]
+          },
+          "zuordnungsschluessel": {
+            "type": "object",
+            "description": "Wie Rohdaten diesem Produkt zugeordnet werden – rein deklarativ, keine Logik im Code",
+            "properties": {
+              "graphSkuPartNumber": {
+                "type": "string"
+              },
+              "azureMeterCategory": {
+                "type": "string"
+              },
+              "azureMeterNameContains": {
+                "type": "string"
+              },
+              "azureServiceName": {
+                "type": "string"
+              },
+              "githubSku": {
+                "type": "string"
+              },
+              "csvProduktname": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "kostenstelleAus": {
+            "enum": [
+              "UserDepartment",
+              "AzureTag",
+              "Environment",
+              "Pauschal"
+            ],
+            "default": "UserDepartment"
+          },
+          "aktiv": {
+            "type": "boolean",
+            "default": true
+          },
+          "hinweis": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  }
+}
