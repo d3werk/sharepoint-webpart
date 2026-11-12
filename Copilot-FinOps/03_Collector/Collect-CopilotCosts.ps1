@@ -1,7 +1,7 @@
 ﻿#Requires -Version 7.2
 <#
 .SYNOPSIS
-  Copilot-FinOps-Collector (Version 1.2): sammelt Lizenz-, Nutzungs- und Verbrauchsdaten und
+  Copilot-FinOps-Collector (Version 1.3): sammelt Lizenz-, Nutzungs- und Verbrauchsdaten und
   schreibt eine normalisierte Faktentabelle (facts.json / facts.csv) für Dashboard und Power BI.
 .DESCRIPTION
   - Keine hartkodierten Werte: alles aus config.json + lizenzkatalog.json
@@ -16,7 +16,8 @@
 #>
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory)][string]$ConfigPath
+  [Parameter(Mandatory)][string]$ConfigPath,
+  [switch]$ValidateOnly
 )
 Set-StrictMode -Version 1.0   # erkennt nicht initialisierte Variablen; toleriert leere Arrays/fehlende CSV-Spalten
 $ErrorActionPreference = 'Stop'
@@ -43,34 +44,62 @@ function Get-Config {
   if (-not (Test-Path $Path)) { throw "Konfiguration nicht gefunden: $Path" }
   $script:ConfigDir = Split-Path (Resolve-Path $Path) -Parent
   $c = Get-Content $Path -Raw -Encoding utf8 | ConvertFrom-Json
-  foreach ($k in 'OutputPath','CatalogPath','EnabledSources') {
-    if (-not $c.PSObject.Properties[$k] -or -not $c.$k) { throw "Pflichtparameter '$k' fehlt in config.json" }
+  if ($null -eq $c -or $c -isnot [pscustomobject]) { throw 'config.json muss ein JSON-Objekt enthalten.' }
+  foreach ($k in 'OutputPath','CatalogPath') {
+    if (-not $c.PSObject.Properties[$k] -or $c.$k -isnot [string] -or [string]::IsNullOrWhiteSpace($c.$k) -or $c.$k -match '[<>]') { throw "Pflichtparameter '$k' fehlt oder ist ungültig." }
   }
-  if ($c.EnabledSources -is [string] -or @($c.EnabledSources).Count -eq 0) { throw 'EnabledSources muss ein nicht leeres Array sein.' }
+  if (-not $c.PSObject.Properties['EnabledSources'] -or $c.EnabledSources -isnot [array] -or $c.EnabledSources.Count -eq 0) { throw 'EnabledSources muss ein nicht leeres Array sein.' }
+  $seenSources = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
   foreach ($source in $c.EnabledSources) {
-    if ($source -notin 'Graph','Azure','PPAC','GitHub') { throw "Unbekannte Datenquelle: $source" }
+    if ($source -isnot [string] -or $source -cnotin 'Graph','Azure','PPAC','GitHub') { throw "Unbekannte Datenquelle: $source" }
+    if (-not $seenSources.Add($source)) { throw "Doppelte Datenquelle: $source" }
   }
   $azureMode = if ($c.PSObject.Properties['AzureMode']) { $c.AzureMode } else { 'Export' }
-  if ($azureMode -notin 'Export','Query') { throw 'AzureMode muss Export oder Query sein.' }
+  if ($azureMode -cnotin 'Export','Query') { throw 'AzureMode muss Export oder Query sein.' }
+  $guidPattern = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
   if ($c.EnabledSources -contains 'Graph' -or ($c.EnabledSources -contains 'Azure' -and $azureMode -eq 'Query')) {
-    foreach ($k in 'TenantId','ClientId','CertificateThumbprint') {
-      if (-not $c.PSObject.Properties[$k] -or [string]::IsNullOrWhiteSpace($c.$k) -or $c.$k -match '[<>]') {
-        throw "Pflichtparameter '$k' fehlt oder enthält einen Platzhalter."
+    foreach ($k in 'TenantId','ClientId') {
+      if (-not $c.PSObject.Properties[$k] -or $c.$k -isnot [string] -or $c.$k -notmatch $guidPattern) { throw "$k muss eine vollständige GUID sein. Einrichten-CopilotFinOps.ps1 oder die Konfigurationsmaske verwenden." }
+    }
+    if (-not $c.PSObject.Properties['CertificateThumbprint'] -or $c.CertificateThumbprint -isnot [string]) { throw 'CertificateThumbprint fehlt.' }
+    $c.CertificateThumbprint = ($c.CertificateThumbprint -replace '[\s\u200e\u200f:]', '').ToUpperInvariant()
+    if ($c.CertificateThumbprint -notmatch '^[0-9A-F]{40}$') { throw 'CertificateThumbprint muss 40 Hexadezimalzeichen enthalten.' }
+  }
+  if ($c.EnabledSources -contains 'Graph' -and (-not $c.PSObject.Properties['DepartmentAttribute'] -or $c.DepartmentAttribute -isnot [string] -or $c.DepartmentAttribute -notmatch '^[A-Za-z][A-Za-z0-9_]{0,127}$')) { throw 'DepartmentAttribute fehlt oder enthält ungültige Zeichen.' }
+  if ($c.EnabledSources -contains 'Azure') {
+    if ($azureMode -eq 'Query') {
+      if (-not $c.PSObject.Properties['AzureScopes'] -or $c.AzureScopes -isnot [array] -or -not $c.AzureScopes.Count) { throw 'Azure Query benötigt mindestens einen AzureScopes-Eintrag: /subscriptions/<GUID>.' }
+      $seenScopes = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+      foreach ($scope in $c.AzureScopes) {
+        if ($scope -isnot [string] -or $scope -notmatch ('^/subscriptions/' + $guidPattern.TrimStart('^'))) { throw 'Azure-Scope muss /subscriptions/<GUID> entsprechen.' }
+        if (-not $seenScopes.Add($scope)) { throw "Doppelter Azure-Scope: $scope" }
       }
+      if (-not $c.PSObject.Properties['CostCenterTag'] -or $c.CostCenterTag -isnot [string] -or [string]::IsNullOrWhiteSpace($c.CostCenterTag) -or $c.CostCenterTag -match '[<>]|\[prüfen\]') { throw 'Azure Query: CostCenterTag fehlt oder enthält einen Platzhalter.' }
+      $date = [datetime]::MinValue
+      $dateText = if ($c.PSObject.Properties['CostApiVersion'] -and $c.CostApiVersion -is [string] -and $c.CostApiVersion -cmatch '^(\d{4}-\d{2}-\d{2})(-preview)?$') { $Matches[1] } else { $null }
+      if (-not $dateText -or -not [datetime]::TryParseExact($dateText, 'yyyy-MM-dd', [cultureinfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref]$date)) { throw 'CostApiVersion muss ein gültiges Datum JJJJ-MM-TT (optional -preview) sein.' }
+    } elseif (-not $c.PSObject.Properties['AzureExportFolder'] -or $c.AzureExportFolder -isnot [string] -or [string]::IsNullOrWhiteSpace($c.AzureExportFolder)) { throw 'Azure Export: AzureExportFolder fehlt.' }
+  }
+  if ($c.EnabledSources -contains 'PPAC') {
+    foreach ($k in 'PpacImportFolder','PpacProduktId') {
+      if (-not $c.PSObject.Properties[$k] -or $c.$k -isnot [string] -or [string]::IsNullOrWhiteSpace($c.$k) -or $c.$k -match '[<>]') { throw "PPAC: '$k' fehlt oder ist ungültig." }
+    }
+    if (-not $c.PSObject.Properties['PpacColumnMap'] -or $c.PpacColumnMap -isnot [pscustomobject]) { throw 'PPAC: PpacColumnMap muss ein Objekt sein.' }
+    foreach ($k in 'Date','Environment','Agent','Credits') {
+      if (-not $c.PpacColumnMap.PSObject.Properties[$k] -or $c.PpacColumnMap.$k -isnot [string] -or [string]::IsNullOrWhiteSpace($c.PpacColumnMap.$k)) { throw "PPAC: PpacColumnMap.$k fehlt." }
     }
   }
-  if ($c.EnabledSources -contains 'Graph' -and (-not $c.PSObject.Properties['DepartmentAttribute'] -or $c.DepartmentAttribute -notmatch '^[A-Za-z][A-Za-z0-9_]*$')) {
-    throw 'DepartmentAttribute fehlt oder enthält ungültige Zeichen.'
-  }
+  if ($c.EnabledSources -contains 'GitHub' -and (-not $c.PSObject.Properties['GitHubOrg'] -or $c.GitHubOrg -isnot [string] -or $c.GitHubOrg -notmatch '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$')) { throw 'GitHubOrg fehlt oder ist ungültig.' }
   $bounds = @{ MinGroupSize = @(1,50); InactiveDays = @(7,180); MonthsBack = @(1,36) }
   foreach ($k in $bounds.Keys) {
-    if ($c.PSObject.Properties[$k] -and (($c.$k -isnot [long] -and $c.$k -isnot [int]) -or $c.$k -lt $bounds[$k][0] -or $c.$k -gt $bounds[$k][1])) {
-      throw "$k muss eine ganze Zahl zwischen $($bounds[$k][0]) und $($bounds[$k][1]) sein."
-    }
+    if ($c.PSObject.Properties[$k] -and (($c.$k -isnot [long] -and $c.$k -isnot [int]) -or $c.$k -lt $bounds[$k][0] -or $c.$k -gt $bounds[$k][1])) { throw "$k muss eine ganze Zahl zwischen $($bounds[$k][0]) und $($bounds[$k][1]) sein." }
   }
-  if ($c.PSObject.Properties['CsvDelimiter'] -and ([string]$c.CsvDelimiter).Length -ne 1) { throw 'CsvDelimiter muss genau ein Zeichen enthalten.' }
+  if ($c.PSObject.Properties['CsvDelimiter'] -and $c.CsvDelimiter -cnotin ';',',') { throw 'CsvDelimiter muss Semikolon oder Komma sein.' }
   foreach ($k in 'OutputPath','CatalogPath','PpacImportFolder','AzureExportFolder') {
-    if ($c.PSObject.Properties[$k]) { $c.$k = Resolve-ConfigPath $c.$k }
+    if ($c.PSObject.Properties[$k]) {
+      if ($c.$k -isnot [string]) { throw "$k muss Text sein." }
+      $c.$k = Resolve-ConfigPath $c.$k
+    }
   }
   return $c
 }
@@ -234,7 +263,7 @@ function Convert-ImportNumber {
 }
 
 #region Quelle 1: Microsoft Graph – Lizenzen, User, Copilot-Nutzung -----------
-# Berechtigungen (Application): Organization.Read.All, User.Read.All, Reports.Read.All [prüfen]
+# Berechtigungen (Application): LicenseAssignment.Read.All, User.Read.All, Reports.Read.All [prüfen]
 function Get-GraphLicenseFacts {
   $tok   = Get-AccessToken 'https://graph.microsoft.com'
   $skus  = @(Invoke-GraphPaged 'https://graph.microsoft.com/v1.0/subscribedSkus' $tok)
@@ -377,17 +406,27 @@ function Get-AzureQueryFacts {
     while ($uri) {
       if (([uri]$uri).Host -ne 'management.azure.com' -or -not $seen.Add($uri)) { throw 'Ungültiger Azure-Folgeseitenlink.' }
       $r = Invoke-Api -Uri $uri -Token $tok -Method POST -Body $body
+      if (-not $r.PSObject.Properties['properties'] -or -not $r.properties -or -not $r.properties.PSObject.Properties['columns'] -or $r.properties.columns -isnot [array] -or -not $r.properties.PSObject.Properties['rows'] -or $r.properties.rows -isnot [array]) { throw 'Azure Query: Antwort enthält keine vollständigen columns/rows-Arrays.' }
       $cols = @($r.properties.columns.name)
+      $seenColumns = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+      foreach ($column in $cols) { if ($column -isnot [string] -or -not $seenColumns.Add($column)) { throw 'Azure Query: ungültige oder doppelte Spaltennamen.' } }
+      foreach ($column in 'Meter','Cost','UsageQuantity','Currency') { if ($column -notin $cols) { throw "Azure Query: Pflichtspalte '$column' fehlt." } }
+      if ('BillingMonth' -notin $cols -and 'UsageDate' -notin $cols) { throw 'Azure Query: Monatsspalte fehlt.' }
+      $tagColumn = if ($cfg.CostCenterTag -in $cols) { $cfg.CostCenterTag } elseif ('TagValue' -in $cols) { 'TagValue' } else { throw 'Azure Query: Spalte für das konfigurierte Kostenstellen-Tag fehlt.' }
       foreach ($row in $r.properties.rows) {
+        if ($row -isnot [array] -or $row.Count -ne $cols.Count) { throw 'Azure Query: Zeile passt nicht zu den Spalten.' }
         $o = @{}; for ($i = 0; $i -lt $cols.Count; $i++) { $o[$cols[$i]] = $row[$i] }
         $p = Find-AzureProduct -MeterCategory '' -MeterName $o['Meter'] -ServiceName ''
         if (-not $p) { continue }
         $dateValue = if ($o.ContainsKey('BillingMonth')) { $o['BillingMonth'] } elseif ($o.ContainsKey('UsageDate')) { $o['UsageDate'] } else { throw 'Azure Query: Monatsspalte fehlt.' }
         $monat = (Convert-ImportDate ([string]$dateValue) -AllowUsDate).ToString('yyyy-MM')
         if (-not $o.ContainsKey('Currency') -or $o['Currency'] -notmatch '^[A-Z]{3}$') { throw 'Azure Query: Währung fehlt oder ist ungültig.' }
-        $fb = if ($o['TagValue']) { $o['TagValue'] } else { 'Nicht getaggt' }
+        if ($null -eq $o['Cost'] -or $null -eq $o['UsageQuantity']) { throw 'Azure Query: Kosten oder Verbrauch fehlen; keine Nullkosten ableiten.' }
+        $quantity = Convert-ImportNumber ([string]$o['UsageQuantity']) 'UsageQuantity'
+        $cost = Convert-ImportNumber ([string]$o['Cost']) 'Cost'
+        $fb = if ($o[$tagColumn]) { $o[$tagColumn] } else { 'Nicht getaggt' }
         $facts.Add((New-Fact -Monat $monat -ProduktId $p.produktId -Fachbereich $fb -Region 'Azure' `
-          -Menge $o['UsageQuantity'] -KostenIst $o['Cost'] -Quelle 'Azure-Query' -Waehrung $o['Currency']))
+          -Menge $quantity -KostenIst $cost -Quelle 'Azure-Query' -Waehrung $o['Currency']))
       }
       $uri = if ($r.properties.PSObject.Properties['nextLink']) { $r.properties.nextLink } else { $null }
     }
@@ -622,6 +661,7 @@ function Publish-FactFiles {
 
 #region Hauptablauf -----------------------------------------------------------
 $cfg = Get-Config $ConfigPath
+if ($ValidateOnly) { Write-Host 'Konfiguration formal gültig. Keine Anmeldung oder Datenabfrage ausgeführt.'; return }
 New-Item -ItemType Directory -Force -Path $cfg.OutputPath | Out-Null
 try { $collectorLock = [IO.File]::Open((Join-Path $cfg.OutputPath '.collector.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None) }
 catch { throw 'Ausgabeordner wird bereits von einem Collector verwendet oder ist nicht schreibbar.' }
@@ -668,3 +708,4 @@ Write-Log "Fertig: $($final.Count) Datensätze, $fehler Quelle(n) mit Fehler"
 if ($fehler -gt 0) { exit 1 }
 } finally { $collectorLock.Dispose() }
 #endregion
+

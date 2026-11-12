@@ -1,0 +1,25 @@
+test_capacity_uses_its_last_actual_month_when_another_source_is_newer (test_dashboard_review.DashboardReviewTests.test_capacity_uses_its_last_actual_month_when_another_source_is_newer) ... FAIL
+
+======================================================================
+FAIL: test_capacity_uses_its_last_actual_month_when_another_source_is_newer (test_dashboard_review.DashboardReviewTests.test_capacity_uses_its_last_actual_month_when_another_source_is_newer)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/work/sharepoint-webpart/Copilot-FinOps/tests/test_dashboard_review.py", line 34, in test_capacity_uses_its_last_actual_month_when_another_source_is_newer
+    self.assertEqual(values[:3], ["100", "70", "30"])
+AssertionError: Lists differ: ['100', '0', '100'] != ['100', '70', '30']
+
+First differing element 1:
+'0'
+'70'
+
+- ['100', '0', '100']
+?               ^^
+
++ ['100', '70', '30']
+?          +     ^
+
+
+----------------------------------------------------------------------
+Ran 1 test in 4.606s
+
+FAILED (failures=1)

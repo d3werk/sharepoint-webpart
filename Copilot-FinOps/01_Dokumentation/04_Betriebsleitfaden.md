@@ -1,5 +1,21 @@
 # Betriebsleitfaden
 
+Version 1.3 · Stand 12.11.2026
+
+## Änderungen an Tenant und Azure sicher übernehmen
+
+Die produktiv genutzte `config.json` zuerst sichern und in der Browsermaske laden oder mit `Einrichten-CopilotFinOps.ps1` bearbeiten. So bleiben zusätzliche Felder, Katalogzuordnungen und bisherige Quellen erhalten. Der Assistent erstellt vor dem Ersetzen eine datierte `.bak`. Den Download der Browsermaske ausdrücklich an den konfigurierten Ablageort kopieren.
+
+Vor einem Tenant-Wechsel prüfen, ob die App-Registrierung und das hochgeladene Zertifikat im neuen Tenant vorhanden sind und die App dort zugestimmte Graph-Rechte sowie die erforderlichen Azure-Rollen besitzt. Eine geänderte Tenant-ID allein überträgt keine Berechtigungen. Die vom Assistenten per Benutzeranmeldung aufgelisteten Abonnements belegen nicht den Kostenlesezugriff der Collector-App.
+
+Vor dem Lauf die Einstellungen lokal prüfen:
+
+```powershell
+./03_Collector/Collect-CopilotCosts.ps1 -ConfigPath ./02_Konfiguration/config.json -ValidateOnly
+```
+
+Diese Prüfung führt keine Anmeldung durch. Danach einen vollständigen manuellen Collector-Lauf unter dem späteren Ausführungskonto testen und erst anschließend die Aufgabenplanung wieder verwenden. Bei neuen Azure-Abonnements immer sowohl `AzureScopes` als auch die IAM-Zuweisung der App prüfen.
+
 ## 1. Regelbetrieb
 
 | Wann | Was | Wer |
@@ -9,7 +25,15 @@
 | täglich | Protokoll `06_Daten\out\collector_*.log` auf `ERROR` prüfen (oder Exit-Code 1 überwachen) | IT/FinOps |
 | monatlich bis 3. Werktag | CSV-Export Copilot Studio aus PPAC nach `06_Daten\import\ppac` | Power-Platform-Admin |
 | monatlich | Preise/Budgets prüfen, Einsparpotenziale an Fachbereiche melden | Controlling |
-| jährlich / vor Ablauf | Zertifikat erneuern (`New-AppZertifikat.ps1`, neue `.cer` hochladen, Fingerabdruck in der Maske ändern) | IT/FinOps |
+| jährlich / vor Ablauf | Zertifikat erneuern (neuen Namen bei `New-AppZertifikat.ps1 -Name` verwenden, neue `.cer` hochladen, Fingerabdruck in der Konfiguration ändern) | IT/FinOps |
+
+## Zertifikat ohne Betriebsunterbrechung wechseln
+
+1. Unter dem Collector-Konto ein neues Zertifikat mit eigenem Namen erstellen, z. B. `./03_Collector/New-AppZertifikat.ps1 -Name Copilot-FinOps-Collector-2027`. Das Skript überschreibt keine vorhandene `.cer`.
+2. Den öffentlichen Teil in derselben Entra-App hochladen. Den alten Schlüssel bis zum erfolgreichen Test behalten.
+3. In einer gesicherten Konfiguration nur den Fingerabdruck auf das neue Zertifikat umstellen. Vollständigen Fingerabdruck übernehmen; fehlende Zeichen nicht erraten.
+4. Voraussetzungprüfung und Collector unter dem tatsächlichen Ausführungskonto starten, Protokoll und Ergebnis prüfen.
+5. Nach erfolgreicher Umstellung den alten Eintrag gemäß Aufbewahrungs-/Schlüsselrichtlinie entfernen lassen. Konfiguration und Zertifikaterneuerung dokumentieren.
 
 ## 2. Neues Lizenzmodell ergänzen – ohne Code-Änderung
 1. `02_Konfiguration\lizenzkatalog.json` öffnen, z. B. in VS Code (dort mit Schema-Prüfung).
@@ -55,3 +79,4 @@
 | Berichte nutzen, Maßnahmen ableiten | C | R | R/A | – |
 | Berechtigungen / RLS | R/A | C | I | C |
 | Datenschutz, Betriebsvereinbarung, Mindestgruppengröße | C | I | I | R/A |
+

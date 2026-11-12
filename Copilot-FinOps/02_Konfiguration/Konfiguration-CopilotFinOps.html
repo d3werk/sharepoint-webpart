@@ -21,57 +21,47 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .chk{display:flex;gap:16px;flex-wrap:wrap}.chk label{font-weight:400;display:flex;gap:6px;align-items:center}
 button,.btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 14px;border-radius:6px;cursor:pointer;font:inherit}
 .pri{background:var(--ac);border-color:var(--ac);color:#fff}
+@media(prefers-color-scheme:dark){.pri{color:#0f172a}}
 table{width:100%;border-collapse:collapse;table-layout:fixed}td{padding:3px 4px}td:last-child{width:42px}td input{margin:0!important;min-width:0}
 pre{background:var(--in);border:1px solid var(--bd);border-radius:6px;padding:10px;font-size:12px;overflow:auto;max-height:520px;white-space:pre}
 #status{padding-left:18px}#status li{margin:2px 0}.e{color:var(--er)}.w{color:var(--wa)}.o{color:var(--ok)}
-.sec-off{opacity:.55}
+[hidden]{display:none!important}a{color:var(--ac)}button:disabled{opacity:.55;cursor:not-allowed}summary{cursor:pointer;font-weight:600;padding:4px 0}details p{margin:8px 0}.intro{max-width:1400px;padding:18px 24px 0;margin:auto}.intro p{margin:4px 0 10px}.note{border-left:3px solid var(--ac);padding:8px 12px;background:var(--in);border-radius:4px}.steps{padding-left:20px}.steps li{margin:6px 0}.source-options{display:grid;gap:10px}.source-options label{align-items:flex-start}.source-options input{margin-top:4px}.source-options span{display:block}.source-options small{display:block;color:var(--mu)}.presets{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.import-note{max-width:1400px;margin:0 auto;padding:0 24px;color:var(--ok)}code{overflow-wrap:anywhere}#saveState{font-weight:600}#authCard p{margin:8px 0 12px}.table-hint{margin-bottom:8px}
 </style></head><body>
 <header><h1>Copilot-FinOps – Konfiguration</h1>
 <div><button type="button" id="loadButton">Vorhandene config.json laden</button><input type="file" id="load" accept=".json" hidden>
 <button type="button" id="dl" class="pri">config.json speichern</button></div></header>
+<div class="intro"><p>Hier legst du fest, <strong>woher die Kostendaten kommen</strong> und wo der Collector sie ablegt. Wähle zuerst die Quellen. Danach erscheinen nur die benötigten Einstellungen.</p>
+<details class="note"><summary>Tenant und Azure einfacher einrichten: PowerShell-Assistent</summary><p>Der lokale <a href="../03_Collector/Einrichten-CopilotFinOps.ps1" download>Einrichtungsassistent</a> führt durch die Angaben und bietet unter Windows vorhandene gültige Zertifikate an. Mit <code>-DiscoverAzure</code> kann er nach deiner Anmeldung die Tenant-ID und auswählbare Azure-Abonnements ermitteln.</p><p>Im Paketordner in PowerShell 7 starten: <code>./03_Collector/Einrichten-CopilotFinOps.ps1 -DiscoverAzure</code>. Anschließend die erzeugte <code>config.json</code> hier laden. Für reine CSV-Importe den Schalter weglassen.</p><p>Die Benutzeranmeldung dient der Ermittlung. Der Collector verwendet weiterhin die App mit Zertifikat. App-Registrierung, Administratorzustimmung und Azure-Rollen werden dadurch nicht automatisch eingerichtet.</p></details></div>
+<p id="importNotice" class="import-note" role="status"></p>
 <form class="wrap" id="f" onsubmit="return false">
 <div>
-<section class="card"><h2>1. Anmeldung (App-Registrierung)</h2><p class="sub">Werte aus dem Entra Admin Center → App-Registrierungen → deine App → Übersicht.</p>
+<section class="card" id="sourcesCard"><h2 id="sourcesTitle">1. Datenquellen wählen</h2><p class="sub">CSV-Dateien lassen sich ohne Tenant-Anmeldung verarbeiten. Für Microsoft Graph und Azure Query braucht der Collector eine App mit Zertifikat.</p>
+<div class="presets" aria-label="Quelle für den Einstieg auswählen"><button type="button" data-preset="Graph">M365-Lizenzen</button><button type="button" data-preset="AzureExport">Azure aus CSV</button><button type="button" data-preset="AzureQuery">Azure direkt abfragen</button><button type="button" data-preset="PPAC">Copilot Studio aus CSV</button></div><p class="hint">Ein Einstieg wählt die passende Quelle aus. Bereits eingetragene Werte bleiben erhalten. Weitere Quellen kannst du darunter ergänzen.</p>
+<div class="chk source-options" id="sourcesGroup" role="group" aria-labelledby="sourcesTitle" aria-describedby="srcMsg"><label><input type="checkbox" class="src" value="Graph" checked><span>Microsoft Graph<small>M365-Lizenzen und Nutzung · App-Anmeldung erforderlich</small></span></label>
+<label><input type="checkbox" class="src" value="Azure"><span>Azure Cost Management<small>Azure OpenAI / Foundry · CSV-Export oder direkte Query API</small></span></label>
+<label><input type="checkbox" class="src" value="PPAC"><span>Copilot Studio<small>Verbrauch als CSV aus dem Power Platform Admin Center (PPAC) · keine Tenant-Anmeldung im Collector</small></span></label>
+<label><input type="checkbox" class="src" value="GitHub"><span>GitHub Copilot<small>Organisation und separates Token · keine Entra-App erforderlich</small></span></label></div><div class="msg" id="srcMsg"></div></section>
+<section class="card" id="authCard"><h2>2. App-Anmeldung im Tenant</h2><p>Ein <strong>Tenant (Mandant)</strong> ist das Microsoft-Verzeichnis deiner Organisation. Die <strong>App-Registrierung</strong> gibt dem Collector eine eigene Identität. Er meldet sich mit einem Zertifikat an; ein Benutzerkennwort gehört nicht in diese Datei.</p><p class="sub">Im <a href="https://entra.microsoft.com" target="_blank" rel="noopener noreferrer">Entra Admin Center</a> die passende App öffnen: Identität → Anwendungen → App-Registrierungen → Übersicht.</p>
 <div class="row">
-<label>Mandanten-ID (TenantId)<input type="text" id="TenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><div class="hint">Entra ID → Übersicht → Mandanten-ID</div><div class="msg"></div></label>
-<label>Anwendungs-ID (ClientId)<input type="text" id="ClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><div class="hint">App-Registrierung → Anwendungs-ID (Client)</div><div class="msg"></div></label>
-<label>Zertifikat-Fingerabdruck<input type="text" id="CertificateThumbprint" placeholder="40 Zeichen, 0-9 und A-F"><div class="hint">Ausgabe von 03_Collector\New-AppZertifikat.ps1 oder App → Zertifikate</div><div class="msg"></div></label>
-</div></section>
+<label>Mandanten-ID (TenantId)<input type="text" id="TenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false"><div class="hint">„Verzeichnis-ID (Mandant)“ der App-Übersicht. Die ID muss zum Tenant der Daten passen.</div><div class="msg"></div></label>
+<label>Anwendungs-ID (ClientId)<input type="text" id="ClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false"><div class="hint">„Anwendungs-ID (Client)“ der App-Übersicht. Nicht die Objekt-ID verwenden.</div><div class="msg"></div></label>
+<label>Zertifikat-Fingerabdruck<input type="text" id="CertificateThumbprint" placeholder="40 Zeichen, 0-9 und A-F" autocomplete="off" spellcheck="false"><div class="hint">Ausgabe von New-AppZertifikat.ps1. Der private Schlüssel muss im Windows-Zertifikatspeicher des ausführenden Kontos liegen. Leerzeichen und Doppelpunkte werden entfernt.</div><div class="msg"></div></label>
+</div><details><summary>Noch keine App oder kein Zertifikat?</summary><ol class="steps"><li>Unter Windows <code>03_Collector\New-AppZertifikat.ps1</code> unter dem Konto ausführen, das später den Collector startet.</li><li>Eine App-Registrierung im eigenen Tenant anlegen und unter „Zertifikate &amp; Geheimnisse → Zertifikate“ die erzeugte öffentliche <code>.cer</code>-Datei hochladen.</li><li data-src="Graph">Für Graph die Anwendungsberechtigungen <code>LicenseAssignment.Read.All</code>, <code>User.Read.All</code> und <code>Reports.Read.All</code> prüfen und Administratorzustimmung erteilen lassen.</li><li>Die IDs und den Fingerabdruck eintragen. Der <a href="../01_Dokumentation/01_Schnellstart.md">Schnellstart</a> erklärt Berechtigungen und ersten Lauf.</li></ol></details></section>
 
-<section class="card"><h2>2. Ablage</h2><p class="sub">Relative Pfade gelten ab dem Ordner <b>02_Konfiguration</b>. Die Standardwerte passen zur Ordnerstruktur des Pakets.</p>
+<section class="card" data-src="Azure"><h2>Azure: Daten beziehen und zuordnen</h2><p class="sub">Wähle, ob der Collector bereits exportierte Dateien verarbeitet oder die Kosten direkt aus Azure abfragt.</p>
+<details><summary>Welches Verfahren passt?</summary><p><strong>Export-Dateien:</strong> Gut für einen Einstieg ohne App-Anmeldung im Collector. Im Azure-Portal einen Export einrichten und die entpackten CSV-Dateien regelmäßig lokal bereitstellen. Zugriff auf Portal und Storage wird separat benötigt.</p><p><strong>Query API:</strong> Direkter Abruf ohne manuelles Kopieren. Benötigt die App-Anmeldung aus Schritt 2, mindestens ein Abonnement und die Rolle <strong>Cost Management Reader</strong> für diese App auf jedem gewählten Abonnement. Das Benutzerkonto des Assistenten ersetzt diese App-Berechtigung nicht.</p></details>
 <div class="row">
-<label>Ausgabeordner<input type="text" id="OutputPath" value="..\06_Daten\out"><div class="msg"></div></label>
-<label>Lizenzkatalog<input type="text" id="CatalogPath" value="lizenzkatalog.json"><div class="msg"></div></label>
-<label>CSV-Trennzeichen<select id="CsvDelimiter"><option value=";">Semikolon ( ; ) – Excel Deutsch</option><option value=",">Komma ( , )</option></select></label>
-</div></section>
-
-<section class="card"><h2>3. Auswertung &amp; Datenschutz</h2>
-<div class="row">
-<label>Feld für Fachbereich<select id="DepartmentAttribute"><option>department</option><option>companyName</option><option>officeLocation</option></select><div class="hint">Entra-Benutzerfeld, in dem eure Fachbereiche gepflegt sind</div></label>
-<label>„Inaktiv“ nach (Tagen)<input type="number" id="InactiveDays" min="7" max="180" value="30"><div class="hint">7–180</div></label>
-<label>Rückblick (Monate)<input type="number" id="MonthsBack" min="1" max="36" value="12"><div class="hint">1–36</div></label>
-<label>Mindestgruppengröße<input type="number" id="MinGroupSize" min="1" max="50" value="5"><div class="hint">Kleinere Gruppen werden zu „Sonstige“ (Betriebsrat/DSGVO)</div></label>
-</div></section>
-
-<section class="card"><h2>4. Datenquellen</h2><p class="sub">Für den ersten Test nur „Graph“ aktivieren.</p>
-<div class="chk"><label><input type="checkbox" class="src" value="Graph" checked> Microsoft Graph (Lizenzen, Nutzung)</label>
-<label><input type="checkbox" class="src" value="Azure"> Azure Cost Management</label>
-<label><input type="checkbox" class="src" value="PPAC"> Copilot Studio (CSV aus PPAC)</label>
-<label><input type="checkbox" class="src" value="GitHub"> GitHub Copilot</label></div><div class="msg" id="srcMsg"></div></section>
-
-<section class="card" data-src="Azure"><h2>4a. Azure Cost Management</h2>
-<div class="row">
-<label>Verfahren<select id="AzureMode"><option value="Export">Export-Dateien (empfohlen)</option><option value="Query">Query API (direkt)</option></select><div class="hint">Export: täglicher Cost-Management-Export als CSV</div></label>
-<label>Tag-Name für Kostenstelle<input type="text" id="CostCenterTag" placeholder="z. B. Kostenstelle"><div class="msg"></div></label>
+<label>Verfahren<select id="AzureMode"><option value="Export">Export-Dateien (CSV, ohne App-Anmeldung)</option><option value="Query">Query API (direkt, mit App-Anmeldung)</option></select><div class="hint">Das Verfahren bestimmt, ob Tenant-, App- und Zertifikatsangaben erforderlich sind.</div></label>
+<label>Tag-Name für Kostenstelle<input type="text" id="CostCenterTag" placeholder="z. B. Kostenstelle"><div class="hint">Für Query erforderlich, bei Export optional. Der Tag-Wert gilt als Fachbereich. Ohne passenden Tag landen Kosten unter „Nicht getaggt“.</div><div class="msg"></div></label>
 </div>
 <div class="row" id="azExport" style="margin-top:10px">
-<label>Exportordner<input type="text" id="AzureExportFolder" value="..\06_Daten\import\azure-export"><div class="msg"></div></label></div>
+<label>Exportordner<input type="text" id="AzureExportFolder" value="..\06_Daten\import\azure-export"><div class="hint">Entpackte CSV-Dateien hier ablegen. Überlappende Exportstände ersetzen, damit Kosten nicht doppelt gezählt werden. Spaltennamen mit AzureExportColumnMap in der config.json abgleichen.</div><div class="msg"></div></label></div>
 <div class="row" id="azQuery" style="margin-top:10px">
-<label>Abonnement-IDs (eine pro Zeile)<textarea id="AzureSubs" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></textarea><div class="hint">Wird automatisch zu /subscriptions/&lt;ID&gt;</div><div class="msg"></div></label>
+<label>Abonnement-IDs (eine pro Zeile)<textarea id="AzureSubs" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false"></textarea><div class="hint">Azure-Portal → Abonnements → Abonnement-ID. Auch /subscriptions/&lt;ID&gt; ist erlaubt. Doppelte IDs werden einmal übernommen. Der PowerShell-Assistent mit -DiscoverAzure bietet eine Auswahl an.</div><div class="msg"></div></label>
 <label>API-Version<input type="text" id="CostApiVersion" value="2023-11-01"><div class="hint">Nur Datum, ohne Zusätze [aktuell prüfen]</div><div class="msg"></div></label></div>
 </section>
 
-<section class="card" data-src="PPAC"><h2>4b. Copilot Studio – CSV-Import</h2>
+<section class="card" data-src="PPAC"><h2>Copilot Studio: CSV-Dateien zuordnen</h2><p class="sub">Verbrauch im Power Platform Admin Center exportieren und die CSV-Dateien im Importordner ablegen. Der Collector meldet sich dafür nicht am Tenant an.</p>
 <div class="row">
 <label>Importordner<input type="text" id="PpacImportFolder" value="..\06_Daten\import\ppac"><div class="msg"></div></label>
 <label>Produkt-ID im Lizenzkatalog<input type="text" id="PpacProduktId" value="CS-CAPACITY"><div class="msg"></div></label></div>
@@ -83,24 +73,41 @@ pre{background:var(--in);border:1px solid var(--bd);border-radius:6px;padding:10
 <table id="envT"><tbody></tbody></table><button type="button" id="addEnv" style="margin-top:6px">+ Zeile</button>
 </section>
 
-<section class="card" data-src="GitHub"><h2>4c. GitHub Copilot</h2>
+<section class="card" data-src="GitHub"><h2>GitHub Copilot: Organisation</h2>
 <div class="row">
 <label>Organisation<input type="text" id="GitHubOrg" placeholder="z. B. contoso"><div class="msg"></div></label>
 <label>Standard-Fachbereich<input type="text" id="GitHubDefaultDepartment" value="IT"></label>
 <label>API-Version<input type="text" id="GitHubApiVersion" value="2022-11-28"></label></div>
 <div class="hint">Token nicht hier eintragen, sondern als Umgebungsvariable <b>FINOPS_GITHUB_TOKEN</b> auf dem Server.</div>
 </section>
+<section class="card"><h2>3. Ablage und Auswertung</h2><p class="sub">Die Standardpfade passen zum entpackten Paket. Relative Pfade gelten ab dem Ordner der config.json, normalerweise <b>02_Konfiguration</b>.</p>
+<div class="row">
+<label>Ausgabeordner<input type="text" id="OutputPath" value="..\06_Daten\out"><div class="msg"></div></label>
+<label>Lizenzkatalog<input type="text" id="CatalogPath" value="lizenzkatalog.json"><div class="msg"></div></label>
+<label>CSV-Trennzeichen<select id="CsvDelimiter"><option value=";">Semikolon ( ; ) – Excel Deutsch</option><option value=",">Komma ( , )</option></select></label>
+</div></section>
+
+<section class="card"><h2>Auswertung &amp; Datenschutz</h2>
+<div class="row">
+<label data-src="Graph">Feld für Fachbereich<select id="DepartmentAttribute"><option>department</option><option>companyName</option><option>officeLocation</option></select><div class="hint">Entra-Benutzerfeld, in dem eure Fachbereiche gepflegt sind</div></label>
+<label>„Inaktiv“ nach (Tagen, Graph/GitHub)<input type="number" id="InactiveDays" min="7" max="180" value="30"><div class="hint">7–180. Wird für die Nutzungsbewertung aus Graph und GitHub verwendet.</div></label>
+<label>Rückblick (Monate)<input type="number" id="MonthsBack" min="1" max="36" value="12"><div class="hint">1–36</div></label>
+<label>Mindestgruppengröße<input type="number" id="MinGroupSize" min="1" max="50" value="5"><div class="hint">Kleinere Gruppen werden zu „Sonstige“ (Betriebsrat/DSGVO)</div></label>
+</div></section>
+
+
 </div>
 
-<div><section class="card" style="position:sticky;top:12px"><h2>Prüfung</h2><ul id="status" aria-live="polite"></ul>
-<h2 style="margin-top:14px">Vorschau config.json</h2><pre id="prev"></pre>
-<p class="hint">Speichern als <b>02_Konfiguration\config.json</b> (vorhandene Datei ersetzen).</p></section></div>
+<div><section class="card" style="position:sticky;top:12px"><h2>4. Prüfen und starten</h2><p id="saveState" role="status"></p><ul id="status" aria-live="polite"></ul>
+<p class="hint">Diese Prüfung kontrolliert Angaben und Dateiformat. Sie prüft keine Verbindung, Dateien auf deinem Rechner, Berechtigungen oder Zertifikate. Die Maske sendet keine Angaben an Microsoft.</p>
+<ol class="steps"><li><strong>config.json speichern</strong> lädt eine Datei herunter. Eine vorhandene Konfiguration zuerst sichern; die neue Datei anschließend in <code>02_Konfiguration\config.json</code> ablegen. Der Browser ersetzt sie nicht automatisch.</li><li>In PowerShell 7 <code>03_Collector\Install-Voraussetzungen.ps1</code> ausführen, danach <code>03_Collector\Start-Collector.cmd</code> unter Windows starten. Unter Linux/macOS den Collector mit <code>-ConfigPath</code> direkt aufrufen.</li><li>Protokoll und <code>06_Daten\out\facts.json</code> prüfen. Im <a href="../04_Dashboard/copilot-cost-dashboard.html">Dashboard</a> anschließend Fakten und Lizenzkatalog laden.</li></ol>
+<details id="previewDetails"><summary>Technische Vorschau: config.json</summary><pre id="prev" tabindex="0" aria-label="Vorschau der Konfiguration"></pre></details></section></div>
 </form>
 <script>
 "use strict";
 (()=>{const $=id=>document.getElementById(id),f=$("f");
 const GUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,THUMB=/^[0-9a-f]{40}$/i,PH=/[<>]|\[prüfen\]/i;
-let EXTRA={}; /* Unbekannte Felder aus geladener Datei (z. B. ProduktIds, AzureExportColumnMap) bleiben erhalten */
+let EXTRA={},PPAC_EXTRA={}; /* Unbekannte Einstellungen bleiben beim Speichern erhalten. */
 const DEFAULT_EXTRA={ProduktIds:{PremiumLizenz:"M365-COPILOT",ChatBasis:"M365-COPILOT-CHAT",GitHubSeats:"GH-COPILOT-BUS"},
  AzureExportColumnMap:{Date:"Date",MeterCategory:"MeterCategory",MeterName:"MeterName",ServiceName:"ConsumedService",Location:"ResourceLocation",Tags:"Tags",Cost:"CostInBillingCurrency",Quantity:"Quantity",Currency:"BillingCurrencyCode"}};
 function envRow(k="",v=""){const tr=document.createElement("tr");tr.innerHTML='<td><input type="text" placeholder="Umgebungsname" aria-label="Umgebung"></td><td><input type="text" placeholder="Fachbereich" aria-label="Fachbereich"></td><td><button type="button" aria-label="Zeile löschen">✕</button></td>';
@@ -109,55 +116,61 @@ const val=id=>$(id).value.trim();
 const integer=id=>$(id).value===""?null:$(id).valueAsNumber;
 const apiDate=(v,preview=false)=>{const m=/^(\d{4}-\d{2}-\d{2})(-preview)?$/.exec(v);if(!m||(!preview&&m[2]))return false;const d=new Date(m[1]+"T00:00:00Z");return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===m[1];};
 const sources=()=>[...document.querySelectorAll(".src:checked")].map(c=>c.value);
+const scopeLines=()=>$("AzureSubs").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+function scopes(){const seen=new Set();return scopeLines().map(s=>s.startsWith("/")?s.replace(/^\/subscriptions\//i,"/subscriptions/"):"/subscriptions/"+s).filter(s=>{const key=s.toLowerCase();if(seen.has(key))return false;seen.add(key);return true;});}
 function build(){const env=Object.create(null);[...$("envT").tBodies[0].rows].forEach(r=>{const[a,b]=[...r.querySelectorAll("input")].map(i=>i.value.trim());if(a)env[a]=b||"Nicht zugeordnet";});
  return{...DEFAULT_EXTRA,...EXTRA,
  TenantId:val("TenantId"),ClientId:val("ClientId"),CertificateThumbprint:val("CertificateThumbprint").replace(/[\s\u200e\u200f:]/g,"").toUpperCase(),
  OutputPath:val("OutputPath"),CatalogPath:val("CatalogPath"),DepartmentAttribute:$("DepartmentAttribute").value,
  MinGroupSize:integer("MinGroupSize"),InactiveDays:integer("InactiveDays"),MonthsBack:integer("MonthsBack"),EnabledSources:sources(),
  AzureMode:$("AzureMode").value,AzureExportFolder:val("AzureExportFolder"),
- AzureScopes:$("AzureSubs").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(s=>s.startsWith("/")?s:"/subscriptions/"+s),
+ AzureScopes:scopes(),
  CostCenterTag:val("CostCenterTag"),CostApiVersion:val("CostApiVersion"),PpacImportFolder:val("PpacImportFolder"),PpacProduktId:val("PpacProduktId"),
- PpacColumnMap:{Date:val("colDate"),Environment:val("colEnv"),Agent:val("colAgent"),Credits:val("colCred")},EnvironmentToDepartment:env,
+ PpacColumnMap:{...PPAC_EXTRA,Date:val("colDate"),Environment:val("colEnv"),Agent:val("colAgent"),Credits:val("colCred")},EnvironmentToDepartment:env,
  CsvDelimiter:$("CsvDelimiter").value,GitHubOrg:val("GitHubOrg"),GitHubApiVersion:val("GitHubApiVersion"),GitHubDefaultDepartment:val("GitHubDefaultDepartment")||"IT"};}
 function setErr(id,m){const el=$(id);if(!el)return;el.classList.toggle("bad",!!m);el.setAttribute("aria-invalid",String(!!m));
- const label=el.closest("label");let box=label?.querySelector(".msg");if(label&&!box){box=document.createElement("div");box.className="msg";label.appendChild(box);}if(box){box.id=id+"Error";box.textContent=m||"";el.setAttribute("aria-describedby",box.id);}}
+ const label=el.closest("label");let box=label?.querySelector(".msg");if(label&&!box){box=document.createElement("div");box.className="msg";label.appendChild(box);}if(box){box.id=id+"Error";box.textContent=m||"";const hint=label.querySelector(".hint");if(hint)hint.id=id+"Hint";el.setAttribute("aria-describedby",[hint?.id,box.id].filter(Boolean).join(" "));}}
 function validate(c){const E=[],W=[],src=c.EnabledSources;
  const chk=(id,active,cond,m)=>{const bad=active&&!cond;setErr(id,bad?m:"");if(bad)E.push(m);};
  const auth=src.includes("Graph")||(src.includes("Azure")&&c.AzureMode==="Query");
- chk("TenantId",auth,GUID.test(c.TenantId),"Mandanten-ID muss eine GUID sein");
- chk("ClientId",auth,GUID.test(c.ClientId),"Anwendungs-ID muss eine GUID sein");
+ chk("TenantId",auth,GUID.test(c.TenantId),"Mandanten-ID aus Entra übernehmen: 36 Zeichen mit Bindestrichen");
+ chk("ClientId",auth,GUID.test(c.ClientId),"Anwendungs-ID aus Entra übernehmen: 36 Zeichen mit Bindestrichen");
  chk("CertificateThumbprint",auth,THUMB.test(c.CertificateThumbprint),"Fingerabdruck: genau 40 Zeichen 0-9/A-F");
  chk("OutputPath",true,!!c.OutputPath&&!PH.test(c.OutputPath),"Ausgabeordner fehlt");
  chk("CatalogPath",true,/\.json$/i.test(c.CatalogPath)&&!PH.test(c.CatalogPath),"Lizenzkatalog-Pfad muss auf .json enden");
- for(const [id,min,max] of [["MinGroupSize",1,50],["InactiveDays",7,180],["MonthsBack",1,36]])chk(id,true,Number.isInteger(c[id])&&c[id]>=min&&c[id]<=max,`${id}: ganze Zahl von ${min} bis ${max} erforderlich`);
+ for(const [id,min,max,name] of [["MinGroupSize",1,50,"Mindestgruppengröße"],["InactiveDays",7,180,"Inaktivitätsgrenze"],["MonthsBack",1,36,"Rückblick in Monaten"]])chk(id,true,Number.isInteger(c[id])&&c[id]>=min&&c[id]<=max,`${name}: ganze Zahl von ${min} bis ${max} erforderlich`);
  chk("DepartmentAttribute",src.includes("Graph"),/^[A-Za-z][A-Za-z0-9_]{0,127}$/.test(c.DepartmentAttribute),"Fachbereichsfeld ist ungültig");
- $("srcMsg").textContent=src.length?"":"Mindestens eine Datenquelle wählen";if(!src.length)E.push("Keine Datenquelle aktiv");
+ $("srcMsg").textContent=src.length?"":"Mindestens eine Datenquelle wählen";$("sourcesGroup").setAttribute("aria-invalid",String(!src.length));if(!src.length)E.push("Keine Datenquelle aktiv");
  const az=src.includes("Azure"),q=c.AzureMode==="Query";
- chk("CostCenterTag",az,!!c.CostCenterTag&&!PH.test(c.CostCenterTag),"Azure: Tag-Name für Kostenstelle fehlt");
+ chk("CostCenterTag",az&&(q||!!c.CostCenterTag),!!c.CostCenterTag&&!PH.test(c.CostCenterTag),"Azure: gültigen Tag-Namen eingeben (bei Query erforderlich)");
  chk("AzureExportFolder",az&&!q,!!c.AzureExportFolder&&!PH.test(c.AzureExportFolder),"Azure: Exportordner fehlt");
  chk("AzureSubs",az&&q,c.AzureScopes.length>0&&c.AzureScopes.every(s=>/^\/subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)),"Azure: gültige Abonnement-ID(s) eintragen");
  chk("CostApiVersion",az&&q,apiDate(c.CostApiVersion,true),"Azure: API-Version im Format JJJJ-MM-TT");
- if(az&&q&&new Set(c.AzureScopes.map(s=>s.toLowerCase())).size!==c.AzureScopes.length)E.push("Azure: Abonnements dürfen nicht doppelt vorkommen");
+ if(az&&q&&scopeLines().length>c.AzureScopes.length)W.push("Azure: Doppelte Abonnement-IDs werden nur einmal gespeichert");
  const pp=src.includes("PPAC");
  chk("PpacImportFolder",pp,!!c.PpacImportFolder&&!PH.test(c.PpacImportFolder),"PPAC: Importordner fehlt");
  chk("PpacProduktId",pp,!!c.PpacProduktId&&!PH.test(c.PpacProduktId),"PPAC: Produkt-ID fehlt");
  [["colDate","Date"],["colEnv","Environment"],["colAgent","Agent"],["colCred","Credits"]].forEach(([id,k])=>chk(id,pp,!!c.PpacColumnMap[k]&&!PH.test(c.PpacColumnMap[k]),"PPAC: alle vier Spaltennamen ausfüllen"));
  const seen=new Set();let duplicate=false,incomplete=false;[...$("envT").tBodies[0].rows].forEach(r=>{const[a,b]=[...r.querySelectorAll("input")].map(i=>i.value.trim());if(a&&seen.has(a.toLowerCase()))duplicate=true;if(a)seen.add(a.toLowerCase());if((a&&!b)||(!a&&b))incomplete=true;});
  if(pp&&duplicate)E.push("PPAC: Umgebungsnamen dürfen nicht doppelt vorkommen");if(pp&&incomplete)E.push("PPAC: Umgebung und Fachbereich je Zeile vollständig eintragen");
+ if(pp&&Object.entries(c.EnvironmentToDepartment).some(([k,v])=>PH.test(k)||PH.test(v)))E.push("PPAC: Platzhalter in der Umgebungszuordnung ersetzen");
  if(pp&&!Object.keys(c.EnvironmentToDepartment).length)W.push("PPAC: keine Umgebungszuordnung – alles landet unter „Nicht zugeordnet“");
  chk("GitHubOrg",src.includes("GitHub"),/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(c.GitHubOrg),"GitHub: Organisationsname fehlt/ungültig");
  chk("GitHubApiVersion",src.includes("GitHub"),apiDate(c.GitHubApiVersion),"GitHub: API-Version im Format JJJJ-MM-TT");
  if(src.includes("GitHub"))W.push("GitHub: Umgebungsvariable FINOPS_GITHUB_TOKEN auf dem Server setzen");
+ if(src.includes("Graph"))W.push("Graph: Anwendungsberechtigungen und Administratorzustimmung in der App-Registrierung prüfen");
  if(az&&q)W.push("Azure Query: Rolle „Cost Management Reader“ für die App auf jedem Abonnement nötig");
  if(az&&!q)W.push("Azure Export: Export im Azure-Portal einrichten und CSV-Dateien in den Exportordner kopieren");
  if(c.MinGroupSize<5)W.push("Mindestgruppengröße unter 5 – mit Betriebsrat/DSB abstimmen");
  return{E,W};}
-function update(){const s=sources();document.querySelectorAll("[data-src]").forEach(x=>x.classList.toggle("sec-off",!s.includes(x.dataset.src)));
+function update(){const s=sources();document.querySelectorAll("[data-src]").forEach(x=>x.hidden=!s.includes(x.dataset.src));
  const q=$("AzureMode").value==="Query";$("azQuery").style.display=q?"":"none";$("azExport").style.display=q?"none":"";
+ $("authCard").hidden=!(s.includes("Graph")||(s.includes("Azure")&&q));
  const c=build(),{E,W}=validate(c);$("prev").textContent=JSON.stringify(c,null,2);
  $("status").innerHTML=(E.map(m=>`<li class="e">✖ ${m}</li>`).join("")+W.map(m=>`<li class="w">⚠ ${m}</li>`).join(""))||'<li class="o">✔ Konfiguration vollständig</li>';
- if(!E.length&&W.length)$("status").insertAdjacentHTML("afterbegin",'<li class="o">✔ Pflichtangaben vollständig</li>');return E;}
-const KNOWN=["TenantId","ClientId","CertificateThumbprint","OutputPath","CatalogPath","DepartmentAttribute","MinGroupSize","InactiveDays","MonthsBack","EnabledSources","AzureMode","AzureExportFolder","AzureScopes","CostCenterTag","CostApiVersion","PpacImportFolder","PpacProduktId","PpacColumnMap","EnvironmentToDepartment","CsvDelimiter","GitHubOrg","GitHubApiVersion","GitHubDefaultDepartment","Pseudonymize"];
+ if(!E.length&&W.length)$("status").insertAdjacentHTML("afterbegin",'<li class="o">✔ Pflichtangaben vollständig</li>');
+ $("dl").disabled=E.length>0;$("saveState").textContent=E.length?`${E.length} ${E.length===1?"Angabe fehlt oder ist ungültig":"Angaben fehlen oder sind ungültig"}`:"Datei kann gespeichert werden";return E;}
+const KNOWN=["TenantId","ClientId","CertificateThumbprint","OutputPath","CatalogPath","DepartmentAttribute","MinGroupSize","InactiveDays","MonthsBack","EnabledSources","AzureMode","AzureExportFolder","AzureScopes","CostCenterTag","CostApiVersion","PpacImportFolder","PpacProduktId","PpacColumnMap","EnvironmentToDepartment","CsvDelimiter","GitHubOrg","GitHubApiVersion","GitHubDefaultDepartment"];
 function checkImport(c){
  if(!c||typeof c!=="object"||Array.isArray(c))throw new Error("kein JSON-Objekt");
  const object=v=>v!==null&&typeof v==="object"&&!Array.isArray(v);
@@ -175,24 +188,25 @@ function checkImport(c){
 }
 function apply(c){
  checkImport(c); // Vor der ersten Änderung am Formular alle Datentypen prüfen.
- const clean=v=>typeof v==="string"&&PH.test(v)?"":v;
- f.reset();EXTRA=Object.create(null);Object.keys(c).forEach(k=>{if(!KNOWN.includes(k))EXTRA[k]=c[k];});
- ["TenantId","ClientId","CertificateThumbprint","OutputPath","CatalogPath","CostCenterTag","AzureExportFolder","PpacImportFolder","PpacProduktId","GitHubOrg","GitHubApiVersion","GitHubDefaultDepartment","InactiveDays","MonthsBack","MinGroupSize"].forEach(k=>{if(c[k]!=null&&$(k))$(k).value=clean(c[k]);});
- if(c.CostApiVersion)$("CostApiVersion").value=String(c.CostApiVersion).replace(/\s*\[prüfen\]/i,"");
+ f.reset();EXTRA=Object.create(null);PPAC_EXTRA=Object.create(null);Object.keys(c).forEach(k=>{if(!KNOWN.includes(k))EXTRA[k]=c[k];});
+ ["TenantId","ClientId","CertificateThumbprint","OutputPath","CatalogPath","CostCenterTag","AzureExportFolder","PpacImportFolder","PpacProduktId","GitHubOrg","GitHubApiVersion","GitHubDefaultDepartment","InactiveDays","MonthsBack","MinGroupSize"].forEach(k=>{if(c[k]!=null&&$(k))$(k).value=c[k];});
+ if(c.CostApiVersion!=null)$("CostApiVersion").value=c.CostApiVersion;
  if(c.DepartmentAttribute){const s=$("DepartmentAttribute");if(![...s.options].some(o=>o.value===c.DepartmentAttribute))s.add(new Option(c.DepartmentAttribute));s.value=c.DepartmentAttribute;}
  if(c.CsvDelimiter)$("CsvDelimiter").value=c.CsvDelimiter;if(c.AzureMode)$("AzureMode").value=c.AzureMode;
  document.querySelectorAll(".src").forEach(x=>x.checked=(c.EnabledSources||[]).includes(x.value));
- $("AzureSubs").value=(c.AzureScopes||[]).filter(s=>!PH.test(s)).join("\n");
- const m=c.PpacColumnMap||{};[["colDate","Date"],["colEnv","Environment"],["colAgent","Agent"],["colCred","Credits"]].forEach(([id,k])=>{$(id).value=m[k]&&!PH.test(m[k])?m[k]:"";});
- $("envT").tBodies[0].replaceChildren();Object.entries(c.EnvironmentToDepartment||{}).filter(([k])=>!PH.test(k)).forEach(([k,v])=>envRow(k,PH.test(v)?"":v));
+ $("AzureSubs").value=(c.AzureScopes||[]).join("\n");
+ const m=c.PpacColumnMap||{};Object.keys(m).forEach(k=>{if(!["Date","Environment","Agent","Credits"].includes(k))PPAC_EXTRA[k]=m[k];});[["colDate","Date"],["colEnv","Environment"],["colAgent","Agent"],["colCred","Credits"]].forEach(([id,k])=>{if(k in m)$(id).value=m[k];});
+ $("envT").tBodies[0].replaceChildren();Object.entries(c.EnvironmentToDepartment||{}).forEach(([k,v])=>envRow(k,v));
  if(!$("envT").tBodies[0].rows.length)envRow();}
 f.addEventListener("input",update);f.addEventListener("change",update);
+document.querySelectorAll("[data-preset]").forEach(button=>button.addEventListener("click",()=>{const preset=button.dataset.preset;const source=preset.startsWith("Azure")?"Azure":preset;document.querySelectorAll(".src").forEach(x=>x.checked=x.value===source);if(source==="Azure")$("AzureMode").value=preset==="AzureQuery"?"Query":"Export";$("importNotice").textContent="Einstieg ausgewählt. Deine eingetragenen Werte bleiben erhalten.";update();}));
 $("addEnv").addEventListener("click",()=>{envRow();update();});
 $("loadButton").addEventListener("click",()=>$("load").click());
 $("load").addEventListener("change",async e=>{const file=e.target.files[0];if(!file)return;
- try{const c=JSON.parse((await file.text()).replace(/^\uFEFF/,""));apply(c);update();}
+ try{const c=JSON.parse((await file.text()).replace(/^\uFEFF/,""));apply(c);update();$("importNotice").textContent="Konfiguration geladen. Bitte die Prüfung und aktivierten Quellen kontrollieren.";}
  catch(err){alert("Datei konnte nicht gelesen werden: "+err.message);}e.target.value="";});
 $("dl").addEventListener("click",()=>{const E=update();if(E.length){document.querySelector(".bad")?.focus();return;}
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(build(),null,2)],{type:"application/json"}));a.download="config.json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
 envRow();update();})();
 </script></body></html>
+

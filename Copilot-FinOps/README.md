@@ -1,60 +1,68 @@
-# Copilot-FinOps – Kostenmanagement für die Microsoft-Copilot-Produktfamilie
+# Copilot-FinOps – Kosten und Nutzung verständlich auswerten
 
-Version 1.2 · Stand 11.11.2026
+Version 1.3 · Stand 12.11.2026
 
-Das Paket schafft Transparenz über Lizenzen, Credits und Verbrauchskosten von M365 Copilot Chat, Microsoft 365 Copilot, Copilot Studio, Azure OpenAI/Foundry und GitHub Copilot. Die Kosten werden je Fachbereich ausgewiesen.
+Copilot-FinOps führt Lizenzmengen, Nutzungsangaben und Verbrauchskosten für Microsoft 365 Copilot, Copilot Studio, Azure OpenAI/Foundry und GitHub Copilot zusammen. Das HTML-Dashboard läuft lokal im Browser. Der PowerShell-Collector bereitet eigene Daten für Dashboard und Power BI auf.
 
-## Ordnerstruktur
+## Zuerst ansehen: ohne Installation oder Microsoft-Anmeldung
 
-```
-Copilot-FinOps/
-├── README.md                          ← diese Datei
-├── 01_Dokumentation/
-│   ├── 01_Schnellstart.md             ← Einrichtung Schritt für Schritt (hier beginnen)
-│   ├── 02_Konzept.md                  ← Architektur, Datenquellen, Berechtigungen, Datenschutz
-│   ├── 03_PowerBI-Bauanleitung.md     ← Datenmodell, Measures, Seiten, RLS
-│   ├── 04_Betriebsleitfaden.md        ← Aktualisierung, neue Lizenzmodelle, RACI
-│   └── 05_Annahmen-und-Aenderungen.md ← Annahmen, offene Prüfpunkte, Änderungsprotokoll
-├── 02_Konfiguration/
-│   ├── Konfiguration-CopilotFinOps.html  ← Konfigurationsmaske (im Browser öffnen)
-│   ├── config.json                       ← Einstellungen (Platzhalter ersetzen)
-│   ├── lizenzkatalog.json                ← Produkte, SKUs, Preise – ohne Code erweiterbar
-│   ├── lizenzkatalog.schema.json         ← Prüfschema für den Katalog
-│   └── Beispiele/ budget.json, kapazitaet.json
-├── 03_Collector/
-│   ├── Start-Collector.cmd               ← Datensammlung per Doppelklick
-│   ├── Collect-CopilotCosts.ps1          ← PowerShell-Collector
-│   ├── Install-Voraussetzungen.ps1       ← einmalig: Modul + Zertifikat prüfen
-│   └── New-AppZertifikat.ps1             ← einmalig: Zertifikat für App-Registrierung
-├── 04_Dashboard/
-│   └── copilot-cost-dashboard.html       ← Offline-Dashboard (mit Beispieldaten)
-├── 05_PowerBI/
-│   ├── PowerQuery_*.pq                   ← Abfragen für Power BI Desktop
-│   ├── DAX_Measures.dax, DimDatum.dax    ← Spalten, Measures, RLS
-└── 06_Daten/
-    ├── out/                              ← Ergebnis: facts.json, facts.csv, Protokolle
-    └── import/ ppac/, azure-export/      ← manuelle CSV-Exporte ablegen
-```
+`04_Dashboard/copilot-cost-dashboard.html` im Browser öffnen. Die enthaltenen **Beispieldaten** zeigen Navigation und Auswertungen. Sie stammen nicht aus deinem Tenant. Dafür werden weder PowerShell noch Azure-Zugang oder eine App-Registrierung benötigt.
 
-Zusätzlich: `tests/` enthält ausführbare Regressionstests; der [Prüfbericht](01_Dokumentation/06_Pruefbericht.md) beschreibt Änderungen und Prüfgrenzen.
+Eigene Daten später über **Daten laden** importieren: `06_Daten/out/facts.json` und den zugehörigen `lizenzkatalog.json` gemeinsam auswählen. Budget und Kapazität sind optional. Beim ersten eigenen Import entfernt das Dashboard die Beispieldaten samt Demobudgets und Demokapazitäten.
 
-## In 5 Schritten zum ersten Ergebnis
-1. ZIP z. B. nach `C:\FinOps\` entpacken. Die Ordnerstruktur dabei nicht verändern.
-2. `03_Collector\New-AppZertifikat.ps1` ausführen und die erzeugte `.cer`-Datei in der App-Registrierung hochladen (siehe Schnellstart).
-3. `02_Konfiguration\Konfiguration-CopilotFinOps.html` öffnen, die Felder ausfüllen und die Datei als `config.json` in `02_Konfiguration` speichern.
-4. Doppelklick auf `03_Collector\Start-Collector.cmd`.
-5. `04_Dashboard\copilot-cost-dashboard.html` öffnen, auf **Daten laden** klicken und `06_Daten\out\facts.json` sowie `lizenzkatalog.json` auswählen.
+## Welchen Einrichtungsweg brauche ich?
 
-> Alle Preise, SKU-Namen, Meter-Namen und API-Angaben mit **[prüfen]** vor der Produktivsetzung verifizieren. Das Paket enthält bewusst keine Microsoft-Preise.
+| Ziel | Einfachster Einstieg | Anmeldung des Collectors |
+|---|---|---|
+| Dashboard kennenlernen | HTML-Datei öffnen | keine |
+| Vorhandene Azure-Kosten-CSV auswerten | Quelle **Azure**, Verfahren **Export** | keine; Exportdateien lokal bereitstellen |
+| Copilot-Studio-Verbrauch aus CSV auswerten | Quelle **PPAC** | keine; CSV aus dem Admin Center bereitstellen |
+| M365-Lizenzen und Nutzung auslesen | Quelle **Graph** | Entra-App mit Zertifikat |
+| Azure-Kosten direkt abrufen | Quelle **Azure**, Verfahren **Query** | Entra-App mit Zertifikat und Azure-Leserechten |
+| GitHub Copilot auslesen | Quelle **GitHub** | separates Token in `FINOPS_GITHUB_TOKEN` |
 
-## Auswertung mit eigenen Daten
+Für reine CSV-Importe sind Tenant-ID, Client-ID und Zertifikat keine Pflichtangaben. Eine Quelle erst aktivieren, wenn ihre Einrichtung vollständig ist: Fehler einer aktivierten Quelle verhindern die Veröffentlichung neuer Ergebnisdateien.
 
-`facts.json` ist das unveränderte maschinenlesbare Austauschformat für Dashboard und Power BI. `facts.csv` ist für Excel abgesichert; formelähnliche Texte erhalten dort ein vorangestelltes Apostroph. Deshalb die CSV nicht als Datenquelle für Produkt- oder Berechtigungszuordnungen verwenden.
+## Einstellungen mit weniger Kopierarbeit
 
-Beim ersten eigenen Import entfernt das Dashboard sämtliche Demodaten, Demobudgets und Demokapazitäten. Fakten, Katalog, Budget und Kapazität können gemeinsam oder nacheinander geladen werden. Ein fehlerhafter Import lässt den bisherigen Zustand bestehen. Fehlende Preise und unbekannte Nutzungsdaten werden ausgewiesen; sie dürfen nicht als vollständige Kosten oder als Einsparnachweis interpretiert werden.
+Das Paket bietet zwei Wege, die dieselbe `config.json` erzeugen:
 
-Die Auswertung trennt Währungen ohne Umrechnung. Budgets sind Jahresbudgets in `waehrungStandard` des Katalogs; dieselbe Budgetdatei nicht unverändert für andere Geschäftsjahre verwenden. Preisstände gelten für Monatsfakten am Monatsersten. Jahrespreise für `ProUser` werden durch zwölf geteilt. Der Forecast benötigt mindestens zwei Ist-Monate innerhalb der letzten drei Kalendermonate desselben Jahres.
+- **Im Browser:** `02_Konfiguration/Konfiguration-CopilotFinOps.html` öffnen, zuerst Quellen wählen, anschließend die dafür benötigten Angaben eintragen. Der Download muss als `02_Konfiguration/config.json` im Paket gespeichert werden. Der Browser prüft Formate, nicht den Cloud-Zugang.
+- **Mit lokalem Assistenten:** In PowerShell 7 vom Paketordner aus `./03_Collector/Einrichten-CopilotFinOps.ps1` ausführen. Der Assistent führt durch die Quellenwahl und kann unter Windows passende Zertifikate anbieten. Mit `-DiscoverAzure` liest er nach einer Benutzeranmeldung Tenant-ID und auswählbare Azure-Abonnements ein. App-Registrierung und Berechtigungen bleiben einmalige Administrationsaufgaben.
 
-## Entwicklung und Tests
+Der Assistent bewahrt vorhandene Einstellungen und zusätzliche JSON-Felder. Vor dem Ersetzen legt er eine datierte Sicherung an. Die Benutzeranmeldung zur Ermittlung der Azure-Angaben ersetzt nicht die App-Anmeldung des Collectors.
 
-Für die beiden HTML-Oberflächen ist keine Installation erforderlich. Der Collector benötigt PowerShell 7.2+, bei Zertifikatsanmeldung Windows und `Az.Accounts`. Reine CSV-Importe funktionieren auch unter PowerShell auf Linux ohne Tenant-Anmeldung. Siehe [Testanleitung](tests/README.md) für reproduzierbare lokale Prüfungen. Live-Zugriffe und Power-BI-Refresh sind gesondert in der Zielumgebung zu testen.
+Die [Schritt-für-Schritt-Anleitung](01_Dokumentation/01_Schnellstart.md) erklärt beide Wege, benötigte Rechte und typische Fehler.
+
+## Erster Lauf mit eigenen Daten
+
+1. Das vollständige Paket entpacken und seine Ordnerstruktur erhalten.
+2. Den passenden Einrichtungsweg aus der Tabelle wählen und `config.json` erstellen.
+3. Preise, Zuordnungsschlüssel und CSV-Spalten im Lizenzkatalog bzw. in der Konfiguration prüfen.
+4. Unter Windows `03_Collector/Start-Collector.cmd` starten. Alternativ unter PowerShell 7: `./03_Collector/Collect-CopilotCosts.ps1 -ConfigPath ./02_Konfiguration/config.json`.
+5. Erfolgreichen Abschluss und Protokoll kontrollieren; anschließend `facts.json` und `lizenzkatalog.json` aus `06_Daten/out` in das Dashboard laden.
+
+PowerShell 7.2+ wird für den Collector benötigt. CSV-Importe laufen auch unter Linux/macOS. Die Zertifikatsanmeldung benötigt Windows und `Az.Accounts`. Das Dashboard selbst benötigt keine Installation und keine externen Laufzeitabhängigkeiten.
+
+## Ergebnisse richtig lesen
+
+Fehlende Preise und unbekannte Nutzungsdaten werden ausgewiesen. Ein angezeigter Betrag kann deshalb unvollständig sein; unbekannte Aktivität ist kein Beleg für ungenutzte Lizenzen. Alle Angaben mit **[prüfen]** müssen vor der produktiven Nutzung anhand der Zielumgebung verifiziert werden. Das Paket enthält keine verbindlichen Microsoft-Preise.
+
+Währungen werden getrennt ausgewertet, nicht umgerechnet. Budgets sind Jahresbudgets in der Standardwährung des Katalogs. Monatsfakten verwenden den am Monatsersten gültigen Preis; Jahrespreise für `ProUser` werden durch zwölf geteilt. Der Forecast braucht mindestens zwei Ist-Monate innerhalb der letzten drei Kalendermonate desselben Jahres.
+
+`facts.json` ist das unveränderte Austauschformat für Dashboard und Power BI. `facts.csv` ist für Excel abgesichert: formelähnliche Texte erhalten ein vorangestelltes Apostroph. Daher die CSV nicht als Quelle für Produkt- oder Berechtigungszuordnungen verwenden.
+
+## Dateien und weiterführende Hilfe
+
+| Ordner | Inhalt |
+|---|---|
+| `01_Dokumentation` | [Schnellstart](01_Dokumentation/01_Schnellstart.md), [Konzept und Berechtigungen](01_Dokumentation/02_Konzept.md), [Power BI](01_Dokumentation/03_PowerBI-Bauanleitung.md), [Betrieb](01_Dokumentation/04_Betriebsleitfaden.md), [Prüfbericht](01_Dokumentation/06_Pruefbericht.md) |
+| `02_Konfiguration` | Konfigurationsmaske, `config.json`, Lizenzkatalog, Schema und Beispiele |
+| `03_Collector` | Einrichtungsassistent, Collector, Voraussetzungprüfung und Zertifikaterstellung |
+| `04_Dashboard` | HTML-Dashboard |
+| `05_PowerBI` | Power-Query-Abfragen und DAX |
+| `06_Daten/import` | lokale CSV-Importordner für Azure und PPAC |
+| `06_Daten/out` | erzeugte Fakten, kopierter Katalog und Protokolle |
+| `tests` | [reproduzierbare lokale Prüfungen](tests/README.md) |
+
+Lokale Tests verwenden synthetische Daten und API-Mocks. Echte Tenant-Berechtigungen, aktuelle Endpunkte und Power-BI-Refresh müssen zusätzlich in der Zielumgebung geprüft werden.

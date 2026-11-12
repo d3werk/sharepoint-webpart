@@ -267,5 +267,32 @@ try {
   Assert ($null -ne (Find-AzureProduct -MeterCategory '' -MeterName 'x AI[prod] y' -ServiceName '')) 'Azure Contains mapping treats wildcard characters literally'
   $script:catalog += [pscustomobject]@{produktId='B';datenquelle='AzureCostManagement';zuordnungsschluessel=[pscustomobject]@{azureMeterCategory='AI'}}
   Assert-Throws { Find-AzureProduct -MeterCategory 'AI' -MeterName 'x AI[prod] y' -ServiceName '' } 'ambiguous Azure product mapping rejected'
+  # Query response regressions: missing cost/quantity data must fail instead of
+  # being coerced to zero and replacing the previous complete output set.
+  $script:cfg = [pscustomobject]@{AzureScopes=@('/subscriptions/11111111-1111-1111-1111-111111111111');CostCenterTag='Dept';CostApiVersion='2023-11-01';MonthsBack=1}
+  $script:catalog = @([pscustomobject]@{produktId='A';datenquelle='AzureCostManagement';zuordnungsschluessel=[pscustomobject]@{azureMeterNameContains='AI'}})
+  $script:queryColumns = @('BillingMonth','Meter','Cost','UsageQuantity','Currency','TagValue')
+  $script:queryRows = @(, @((Get-Date -Format 'yyyy-MM-dd'),'AI',12.5,2,'EUR','IT'))
+  function Invoke-Api {
+    param($Uri,$Token,$Method,$Body)
+    [pscustomobject]@{properties=[pscustomobject]@{columns=@($script:queryColumns | ForEach-Object { [pscustomobject]@{name=$_} });rows=$script:queryRows}}
+  }
+  $queried = @(Get-AzureQueryFacts)
+  Assert ($queried.Count -eq 1 -and $queried[0].kostenIst -eq 12.5 -and $queried[0].menge -eq 2) 'complete Azure Query response retains actual costs and usage'
+  $script:queryColumns = @('BillingMonth','Meter','Cost','UsageQuantity','Currency','Dept')
+  $queried = @(Get-AzureQueryFacts)
+  Assert ($queried[0].fachbereich -eq 'IT') 'configured Azure tag column maps to department when API uses the tag name'
+  $script:queryColumns = @('BillingMonth','Meter','Cost','UsageQuantity','Currency','OtherTag')
+  Assert-Throws { Get-AzureQueryFacts } 'missing Azure department tag column is not silently treated as untagged'
+  $script:queryColumns = @('BillingMonth','Meter','UsageQuantity','Currency','TagValue')
+  Assert-Throws { Get-AzureQueryFacts } 'missing Azure cost column fails rather than inventing zero costs'
+  $script:queryColumns = @('BillingMonth','Meter','Cost','UsageQuantity','Currency','TagValue')
+  $script:queryRows = @(, @((Get-Date -Format 'yyyy-MM-dd'),'AI',$null,2,'EUR','IT'))
+  Assert-Throws { Get-AzureQueryFacts } 'null Azure cost cell is unknown and cannot become zero'
+  $script:queryRows = @(, @((Get-Date -Format 'yyyy-MM-dd'),'AI',12.5,2,'EUR'))
+  Assert-Throws { Get-AzureQueryFacts } 'malformed Azure row width rejected'
+  $script:queryColumns += 'Cost'
+  Assert-Throws { Get-AzureQueryFacts } 'duplicate Azure result column rejected'
   Write-Host "Collector offline regressions: $script:passed passed."
 } finally { Remove-Item $temp -Recurse -Force }
+
