@@ -30,13 +30,13 @@ flowchart LR
     H[GitHub REST<br/>Seats, Billing Usage]
   end
   subgraph Sammlung
-    C[PowerShell-Collector<br/>Aufgabenplanung / Automation<br/>App-Reg + Zertifikat]
+    C[PowerShell-Collector<br/>Aufgabenplanung / Automation<br/>Graph/Query: App mit Zertifikat]
     K[(lizenzkatalog.json)]
     CF[(config.json)]
   end
   S[(06_Daten/out<br/>facts.json)]
   G & H --> C
-  A -- Export --> C
+  A -- Export-CSV oder Query API --> C
   P -- manuell --> C
   K & CF --> C
   C --> S
@@ -50,15 +50,21 @@ flowchart LR
 
 | Quelle | Berechtigung | Hinweis |
 |---|---|---|
-| Graph `subscribedSkus` | `Organization.Read.All` (Anwendung) | – |
+| Graph `subscribedSkus` | `LicenseAssignment.Read.All` (Anwendung) | laut Microsoft geringste Berechtigung; bestehendes `Organization.Read.All` deckt den Zugriff ebenfalls ab |
 | Graph `users` | `User.Read.All` (Anwendung) | Fachbereichsfeld konfigurierbar |
 | Graph Copilot-Nutzungsbericht | `Reports.Read.All` (Anwendung) | `getMicrosoft365CopilotUsageUserDetail`, ggf. nur beta [prüfen] |
-| Azure Export | Leserechte auf Storage Account | empfohlen: keine Limits der Query API |
-| Azure Query API | **Cost Management Reader** | max. 2 Gruppierungen [prüfen]; Zuordnung nur über Meter-Name |
+| Azure Export | für das Bereitstellen: Export-/Storage-Zugriff der zuständigen Person oder Übertragung | Collector selbst liest nur lokale CSV; keine Azure-Anmeldung |
+| Azure Query API | **Cost Management Reader** für den Dienstprinzipal der Collector-App an jedem ausgewählten Abonnement | gruppiert nach Meter und Kostenstellen-Tag; tatsächliche API-Unterstützung prüfen |
 | PPAC | Power Platform Admin (manueller Export) | API [prüfen] |
 | GitHub | Fine-grained Token / GitHub App mit Billing-Lesezugriff | Token als Umgebungsvariable |
 
-Die Authentifizierung läuft über eine App-Registrierung mit **Zertifikat**, nicht über ein Secret. Für Azure Automation ist künftig eine Managed Identity möglich (nicht umgesetzt).
+Graph und Azure Query authentifizieren den Collector über eine App-Registrierung mit **Zertifikat**. Der private Schlüssel bleibt im Zertifikatspeicher des ausführenden Windows-Kontos; `config.json` enthält nur Tenant-ID, Client-ID und Fingerabdruck. Graph-Anwendungsberechtigungen benötigen Administratorzustimmung, Azure-Abonnements eine eigene IAM-Rollenzuweisung. Beide Freigaben sind unabhängig voneinander.
+
+Der lokale Assistent `Einrichten-CopilotFinOps.ps1` kann über `-DiscoverAzure` Tenant- und Abonnement-IDs nach einer **Benutzeranmeldung** lesen. Das vereinfacht die Konfiguration, erteilt aber keine Rechte an die Collector-App. Die App-Anmeldung bleibt für die spätere Sammlung erforderlich. Der Assistent erstellt keine Apps, Rollen oder Cloud-Ressourcen.
+
+Reine Azure-Export- und PPAC-Importe benötigen keine Entra-Anmeldung und kein `Az.Accounts`; GitHub verwendet ein separates Token als Umgebungsvariable. Der Browser prüft nur lokale Eingaben, nicht Cloud-Berechtigungen. Eine Managed Identity für Azure Automation ist nicht umgesetzt.
+
+Referenz für die Lizenz-Leseberechtigung: [Microsoft Graph – List subscribedSkus](https://learn.microsoft.com/en-us/graph/api/subscribedsku-list?view=graph-rest-1.0). Berechtigungen für den konkret verwendeten Copilot-Bericht, Tenant-Richtlinien und die API-Verfügbarkeit vor dem produktiven Einsatz prüfen.
 
 ## 5. Sicherheit und Datenschutz
 - Der Collector speichert **keine UPNs**. Er gibt ausschließlich Werte aggregiert nach Fachbereich und Region aus.
@@ -87,3 +93,4 @@ Die Authentifizierung läuft über eine App-Registrierung mit **Zertifikat**, ni
 3. Ist kein Preis gepflegt (`[prüfen]`), werden die Kosten mit 0 angesetzt und als „Produkte ohne Preis“ ausgewiesen.
 
 Währungen werden nicht addiert oder umgerechnet. Das Dashboard bietet eine Währungsauswahl; Geld-Measures in Power BI bleiben bei gemischten Währungen leer. Unbekannte Nutzung (`aktiv: null`) bleibt unbekannt: Auslastung und Einsparpotenzial werden daraus nicht berechnet. Die technische Sammlung und Preisberechnung ersetzt keine Rechnungsabstimmung.
+

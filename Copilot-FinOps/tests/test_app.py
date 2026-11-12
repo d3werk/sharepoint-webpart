@@ -225,7 +225,7 @@ class BrowserTests(unittest.TestCase):
         self.page.locator('.src[value="Graph"]').uncheck()
         self.page.locator('.src[value="PPAC"]').check()
         expect(self.page.locator("#status .e")).to_have_count(0)
-        config = json.loads(self.page.locator("#prev").inner_text())
+        config = json.loads(self.page.locator("#prev").text_content())
         self.assertEqual(config["EnabledSources"], ["PPAC"])
         self.assertEqual(config["TenantId"], "")
 
@@ -248,10 +248,10 @@ class BrowserTests(unittest.TestCase):
     def test_configuration_malformed_import_is_atomic(self):
         self.page.goto(self.url + CONFIGURATION)
         self.page.locator("#OutputPath").fill("keep-me")
-        before = self.page.locator("#prev").inner_text()
+        before = self.page.locator("#prev").text_content()
         self.upload([("config.json", {"OutputPath": "replaced", "EnabledSources": ["PPAC"],
                                       "AzureScopes": [123]})], "#load")
-        self.assertEqual(self.page.locator("#prev").inner_text(), before)
+        self.assertEqual(self.page.locator("#prev").text_content(), before)
 
     def test_configuration_unknown_fields_and_special_mapping_roundtrip(self):
         self.page.goto(self.url + CONFIGURATION)
@@ -259,7 +259,7 @@ class BrowserTests(unittest.TestCase):
                 "EnvironmentToDepartment": {"__proto__": "IT", "constructor": "Forschung"},
                 "CustomSetting": {"keep": True}}
         self.upload([("config.json", data)], "#load")
-        preview = json.loads(self.page.locator("#prev").inner_text())
+        preview = json.loads(self.page.locator("#prev").text_content())
         self.assertEqual(preview["EnvironmentToDepartment"], data["EnvironmentToDepartment"])
         self.assertEqual(preview["CustomSetting"], data["CustomSetting"])
 
@@ -346,7 +346,7 @@ class BrowserTests(unittest.TestCase):
                                       "TenantId": "11111111-1111-1111-1111-111111111111"})], "#load")
         self.upload([("config.json", {"EnabledSources": ["PPAC"]})], "#load")
         self.assertEqual(self.page.locator("#TenantId").input_value(), "")
-        self.assertEqual(json.loads(self.page.locator("#prev").inner_text())["EnabledSources"], ["PPAC"])
+        self.assertEqual(json.loads(self.page.locator("#prev").text_content())["EnabledSources"], ["PPAC"])
 
     def test_configuration_duplicate_environment_names_are_reported(self):
         self.page.goto(self.url + CONFIGURATION)
@@ -424,3 +424,4 @@ class SchemaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

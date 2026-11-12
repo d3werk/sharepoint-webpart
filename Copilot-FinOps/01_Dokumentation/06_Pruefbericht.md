@@ -1,75 +1,78 @@
-# Prüfbericht – Copilot-FinOps 1.2
+# Prüfbericht – Copilot-FinOps 1.3
 
-Prüfdatum: 11.11.2026. Grundlage: unverändertes Originalarchiv `Copilot-FinOps_v1.1.zip`. Überarbeiteter Quellstand: `Copilot-FinOps` in diesem Repository.
+Prüfdatum: **12.11.2026**. Grundlage: Repository `d3werk/sharepoint-webpart`, Branch `main`, Commit `84661d0928bba4accb1a138d52c04bd730b787e9`. Geprüft wurden Konfigurationsoberfläche, Collector, Dashboard, Einrichtung und zugehörige Erklärungen.
 
 ## Ergebnis
 
-Die lokalen Prüfungen des überarbeiteten Stands bestehen: **36 Browser-/Schema-/Integrationstests**, **56 Collector-Prüfungen** und die Syntaxprüfungen für **zwei JavaScript-Anwendungen und drei Power-Query-Abfragen**. Kein Test im abschließenden lokalen Funktionslauf wurde übersprungen. Der PPAC-Collector wurde tatsächlich als PowerShell-Unterprozess ausgeführt; seine JSON-Ausgabe anschließend im echten Chromium-Dashboard geladen.
+**48 Browser-/Schema-/Integrationstests, 64 Collector-Prüfungen und 24 Assistenten-Prüfungen bestanden.** Kein Test im vollständigen Browserlauf wurde übersprungen. Beide JavaScript-Oberflächen und alle drei Power-Query-Abfragen bestehen die Syntaxprüfung.
 
-Sieben gezielte Regressionstests wurden zusätzlich gegen das Originalarchiv ausgeführt. Alle sieben zeigen dort die ursprünglichen Fehler und bestehen im korrigierten Stand. Die Fehler in diesem gesonderten Baseline-Protokoll sind erwartete Nachweise des Ausgangszustands.
+Tenant-/Azure-Einstellungen sind einfacher zugänglich: Zuerst wird die Datenquelle gewählt, danach erscheinen die erforderlichen Angaben. Reine CSV-Verarbeitung benötigt keine Tenant-Anmeldung. Der neue lokale Assistent kann Tenant- und Abonnement-IDs ermitteln, gültige lokale Zertifikate anbieten und eine bestehende Konfiguration mit Sicherung aktualisieren.
 
-**Noch nicht bestätigt:** echte Tenant-/Billing-Zugriffe, Windows-Zertifikatsanmeldung sowie Ausführung von DAX, Power-BI-Refresh und RLS. Die Anwendung ist lokal geprüft; eine produktive Rechnungs- und Berechtigungsprüfung in der Zielumgebung bleibt erforderlich.
+Zusätzlich wurden konkrete Fehler bei unterschiedlich aktuellen Datenquellen sowie bei unvollständigen Azure-Query-Antworten behoben. Die vorhandene `config.json` mit ihren Kennungen wurde nicht verändert.
 
-## Wesentliche Befunde und Korrekturen
+**Prüfgrenzen:** Keine echte Microsoft-/GitHub-Anmeldung, kein produktiver API-Aufruf und keine Änderung von Cloud-Ressourcen. Windows-Zertifikatszugriff sowie DAX-Ausführung, Power-BI-Refresh und RLS sind in der Zielumgebung zu prüfen.
 
-| Bereich | Befund in 1.1 | Verhalten in 1.2 |
-|---|---|---|
-| Eigene Daten | Demo-Fakten, -Budgets und -Kapazitäten konnten nach Teilimporten erhalten bleiben. | Erster eigener Import entfernt Demo vollständig; fehlende Dateien werden kenntlich gemacht. |
-| Dateiimport | Fehler nach der ersten Datei konnten den Zustand teilweise verändern. | Alle Dateien werden vor Übernahme geprüft, einschließlich abgeleiteter Zahlen; Fehler erhalten den vorherigen Stand. |
-| Währungen | EUR-/USD-Werte wurden gemeinsam summiert oder mit dem falschen Währungssymbol versehen. | Einzelauswahl im Dashboard, Schutz in Power-BI-Measures, keine implizite Umrechnung; Preiswährung muss zur Faktwährung passen. |
-| Preise/Zeitbezug | Jahrespreise, Monatsgültigkeit und YTD-Filter waren uneinheitlich. | Monatsanfangs-Gültigkeit, Jahrespreis pro User geteilt durch zwölf, YTD unabhängig vom sichtbaren Startmonat. |
-| Forecast/Budget | Monatslücken und unzureichende Historie konnten irreführen; Budget 0 und fehlendes Budget waren nicht sauber getrennt. | Trend berücksichtigt Kalendermonatsabstände; mindestens zwei aktuelle Ist-Monate; explizite Behandlung von 0/fehlendem Budget. |
-| Lizenznutzung | Fehlende Nutzungsdaten wurden als 0 aktiv behandelt, mit scheinbarem Einsparpotenzial. | Unbekannte Aktivität bleibt `null`; kein daraus abgeleitetes Einsparpotenzial. Unzugewiesene Pools unterdrücken bekannte Nutzungswerte nicht. |
-| Historie | Frühere Lizenzmonate gingen beim monatlichen Überschreiben verloren. | Tatsächlich gesammelte Graph-/GitHub-Seat-Snapshots bleiben innerhalb des Zeitfensters erhalten; erneute Läufe sind idempotent. |
-| Quellenfehler | Unvollständige Ergebnisse konnten gute Dateien ersetzen. | Fehler aktivierter Quellen erhalten die alten Dateien; vorbereitete Ausgabe mit Sicherung, Rücknahme bei erkannten Schreibfehlern und exklusiver Schreibsperre. |
-| CSV-Importe | Ungültige Spalten/Zahlen/Daten wurden teilweise übersprungen; `|` in Dimensionen zerstörte Schlüssel. | Explizite Fehler, deterministische Zahlen-/Datumsformate, strukturierte Aggregationsschlüssel und erhaltene Quellwährungen. |
-| Kapazität | Null Packs und fehlende Kapazitätsangaben waren uneindeutig; Verbrauch konnte ohne Kapazitätsdatei verschwinden. | Null Packs sind bekannte Kapazität 0. Ein eindeutig bestimmbares Verbrauchsprodukt bleibt ohne Packangabe sichtbar; verschiedene Einheiten werden nicht addiert. |
-| Ausgabe/Sicherheit | Formelähnliche CSV-Texte und besondere JavaScript-Objektschlüssel konnten problematisch sein. | Excel-Formeln entschärft; HTML-Inhalte escaped; sichere Dictionaries/Produktindex; API-Ziele und HTTPS begrenzt. |
-| Konfigurationsmaske | Zahlen wurden still gekürzt, ungültige Importe teilweise übernommen, alte Werte beibehalten. | Typprüfung vor Übernahme, explizite Fehler, frischer Formularzustand, erhaltene unbekannte Felder und Dublettenprüfung. |
-| Power BI | Ungültige Measure-Vergleiche, unbekannte Aktivität und durch CSV-Schutz veränderte Join-/RLS-Schlüssel. | Skalare DAX-Variablen, null-erhaltende M-Abfrage, kanonische `facts.json`, Währungsprüfung und eindeutige Produkt-/Kapazitätsauswahl. |
-| Bedienung/Leistung | Wiederholte Katalogsuche, unbegrenzte Tabellen und mobiler Formularüberlauf. | Produktindex, höchstens 500 Tabellenzeilen und 30 Balken, vollständiger CSV-Export, tastaturbedienbare Ladebuttons, mobile Breitenkorrektur. |
+## Einrichtung und verständliche Erklärungen
+
+| Bisheriger Ablauf | Verhalten in 1.3 |
+|---|---|
+| App- und Zertifikatsangaben stehen vor der Quellenwahl. Alle Quellenbereiche sind ständig sichtbar. | Quellenwahl und passende Einstiegsschaltflächen stehen zuerst. Nur benötigte Quellenbereiche erscheinen; die App-Anmeldung wird nur für Graph/Azure Query eingeblendet. |
+| Tenant-, App-, Zertifikat- und Subscription-Angaben müssen aus mehreren Stellen übertragen werden. | Begriffe und Fundstellen sind erklärt. `Einrichten-CopilotFinOps.ps1 -DiscoverAzure` kann Tenant und auswählbare Abonnements lesen; unter Windows bietet der Assistent gültige Zertifikate mit privatem Schlüssel an. |
+| Benutzerrechte bei der Ermittlung und App-Rechte bei der Sammlung können verwechselt werden. | Benutzer-Discovery, Collector-App, Graph-Administratorzustimmung und Azure-IAM-Rolle werden getrennt erklärt. Es werden keine Apps, Rollen oder Ressourcen automatisch angelegt. |
+| Die Voraussetzungprüfung wird im bisherigen Schnellstart vor fertig eingerichteter Konfiguration/Zertifikat aufgerufen. | Die Anleitung beginnt mit Demo und Quellenwahl; die Voraussetzungprüfung folgt auf App/Zertifikat und Konfiguration. |
+| JSON-Vorschau und inaktive Felder überladen die Maske. | Technische Vorschau ist eingeklappt; Azure Export und Query werden mit ihrem konkreten Aufwand erklärt. |
+| Speichern kann als direkte Änderung der Paketdatei verstanden werden. | Die Maske erklärt Download, Ablage als `02_Konfiguration/config.json` und nächsten Collector-Schritt ausdrücklich. |
+| Formale Vollständigkeit kann mit funktionierendem Cloud-Zugriff verwechselt werden. | Browserprüfung und `-ValidateOnly` sind als lokale Format-/Pflichtfeldprüfung beschrieben. `-WhatIf` ist ausdrücklich nur eine Aktionsvorschau. |
+
+Die Graph-Anleitung nennt `LicenseAssignment.Read.All` als geringste Anwendungsberechtigung für `subscribedSkus`, entsprechend der [Microsoft-Dokumentation](https://learn.microsoft.com/en-us/graph/api/subscribedsku-list?view=graph-rest-1.0). Bestehendes `Organization.Read.All` bleibt eine funktionierende, weitergehende Freigabe. Andere App-Aufgaben sind vor Änderungen bestehender Rechte zu berücksichtigen.
+
+### Verhalten des neuen Assistenten
+
+- Vorhandene und unbekannte JSON-Einstellungen bleiben erhalten. Explizite PPAC-Spaltennamen werden bewahrt; leere PPAC-Standardfelder der bisherigen Vorlage erhalten ihre Standardnamen.
+- Die vorbereitete Datei wird vor dem Ersetzen durch dieselbe formale Prüfung wie im Collector geprüft. Ein Fehler erhält die ursprüngliche Datei.
+- Vor dem Überschreiben entsteht eine datierte Sicherung; zwischenzeitlich veränderte Konfigurationen werden nicht überschrieben. Sicherungen und temporäre Konfigurationsdateien sind in `.gitignore` berücksichtigt.
+- Discovery berücksichtigt einen vorhandenen Tenant. Ein abweichender angemeldeter Tenant wird abgewiesen. Ein bewusster Wechsel erfolgt über `-TenantId`.
+- Azure-Abonnements werden gezielt ausgewählt. Im unbeaufsichtigten Discovery-Modus sind explizite `-SubscriptionIds` erforderlich; es werden niemals automatisch sämtliche sichtbaren Abonnements übernommen.
+- `-WhatIf` startet keine Anmeldung, fragt keine Werte ab und schreibt keine Dateien. Es validiert auch keine Konfiguration.
+
+## Fachliche Fehlerkorrekturen
+
+| Befund | Korrektur und Nachweis |
+|---|---|
+| September-Kapazitätsverbrauch kann bei neueren Oktober-Lizenzdaten als null erscheinen; ein Pool mit 100 Credits und 70 verbrauchten Credits zeigt dann fälschlich 100 frei. | Der letzte vorhandene Monat des Kapazitätsprodukts ist maßgeblich. Das Ergebnis lautet September: 70 verbraucht, 30 frei. Ein Filter ohne Verbrauchsdaten zeigt „nicht verfügbar“. Regression im bisherigen Stand nachgewiesen. |
+| Lizenz- und Chat-Auswertungen verwenden den jüngsten Monat sämtlicher Quellen. | Die Ansichten verwenden ihren passenden Lizenz-/Chat-Monat. DAX-Measures wurden entsprechend angepasst; die DAX-Anpassung ist manuell geprüft. |
+| Ein nachgeliefertes Budget setzt Filter zurück. | Ergänzende Dateien erhalten gültige Filter. Neue Fakten aktualisieren den Zeitraum; ein eigener Button setzt Filter zurück. |
+| Importfehler verschwinden nach dem Schließen eines Dialogs. | Fehler bleiben sichtbar; zuvor geladene Daten und Filter bleiben bei fehlgeschlagenem Import erhalten. Demo und geladene Dateitypen sind eindeutig gekennzeichnet. |
+| Leere oder doppelte Query-Scopes können leere Ergebnisse bzw. doppelte Kosten erzeugen. | Der Collector verwirft fehlende, ungültige und doppelte Scopes vor Anmeldung/Datensammlung. Die Maske entfernt doppelte Subscription-Eingaben einmalig und erklärt dies. |
+| Die Maske verlangt auch für Azure-CSV einen Kostenstellen-Tag, obwohl der Collector Exporte ohne Tag unterstützt. | Der Tag ist bei Export optional. Ein Export lässt sich ohne Tenant, Zertifikat oder Tag konfigurieren; bei Query bleibt der Tag erforderlich. |
+| Fehlende Azure-Kosten-/Mengenwerte können durch Typumwandlung zu null werden. | Query-Antworten werden auf erforderliche, eindeutige Spalten, passende Zeilenbreite und vorhandene Zahlenwerte geprüft. Fehlende Werte führen zu einem Fehler. |
+| Eine Azure-Query-Tagspalte kann den konfigurierten Tag-Namen statt `TagValue` tragen. | Beide Varianten werden berücksichtigt. Fehlt die angeforderte Tagspalte, bricht die Quelle ab; tatsächlich leere Tagwerte bleiben „Nicht getaggt“. |
+| Geladene Altoptionen und zusätzliche PPAC-Mappings können beim erneuten Speichern verschwinden. | Auch `Pseudonymize` und zusätzliche PPAC-Mapping-Schlüssel bleiben erhalten. Platzhalter werden sichtbar als Fehler behandelt und nicht still entfernt. |
 
 ## Ausgeführte Prüfungen
 
-### Browser, Schema und Integration – 36 bestanden
+| Prüfung | Ergebnis | Nachweis |
+|---|---|---|
+| Vollständige Chromium-/Schema-/Collector-Integration | **48 bestanden**, keine übersprungen | [Browserprotokoll](Pruefergebnisse/v1.3-browser-schema-tests.txt) |
+| Echte PowerShell-Collector-Funktionen, CSV-Unterprozesse und API-Mocks | **64 bestanden** | [Collectorprotokoll](Pruefergebnisse/v1.3-collector-tests.txt) |
+| Assistent, Sicherungen, Fehlererhalt, Discovery-Mocks und lokale Validierung | **24 bestanden** | [Assistentenprotokoll](Pruefergebnisse/v1.3-setup-tests.txt) |
+| Inline-JavaScript und offizieller Microsoft-Power-Query-Parser | **2 HTML-Anwendungen und 3 M-Abfragen gültig** | [Syntaxprotokoll](Pruefergebnisse/v1.3-syntax-tests.txt) |
+| Neue Kapazitätsregression gegen unveränderten bisherigen Quellstand | **Erwarteter Fehler nachgewiesen:** 0 statt 70 Verbrauch | [Baseline-Nachweis](Pruefergebnisse/v1.2-capacity-regression.txt) |
+| Desktop und mobile Darstellung | Keine horizontale Seitenüberschreitung; zusätzlich 320 px mit ausgeklappter Hilfe/Vorschau getestet | [Konfiguration Desktop](Pruefergebnisse/v1.3-configuration-desktop.jpg), [Konfiguration mobil, Azure CSV](Pruefergebnisse/v1.3-configuration-mobile.jpg), [Dashboard mobil](Pruefergebnisse/v1.3-dashboard-mobile.jpg) |
 
-Die Tests verwenden echte Chromium-Seiten mit Dateiauswahl und Downloads. Geprüft sind Navigation, Theme, Druckansicht, mobile Breiten, Datei-Reihenfolge, BOM, leere Daten, ungültige Monate/Zahlen, atomarer Rückfall, Dubletten, Groß-/Kleinschreibung bei Produkt-IDs, fehlende Preise, echte Nullkosten, Jahrespreise, Datumsgrenzen, unbekannte Aktivität, unzugewiesener Lizenzpool, besondere Objektschlüssel, HTML-Inhalte, CSV-Formeln/Quotes/Zeilenumbrüche und Filterung.
+Der Integrationstest führt den echten PPAC-Collector als PowerShell-Unterprozess aus und lädt dessen Fakten und Katalog im Chromium-Dashboard. Externe HTTP-Anfragen der HTML-Anwendungen werden in den Browserprüfungen als Fehler gewertet. Discovery und Cloud-APIs werden ausschließlich nachgebildet.
 
-Weitere Fälle: explizite Quellwährung, kein Umetikettieren von Katalogpreisen, Währungsauswahl ohne gemischte Summen, YTD, Forecast bei Monatslücken, unzureichende Historie, Budget 0, Packs 0 und verschiedene Kapazitätseinheiten. Die Konfiguration wurde auf lokale Quellen ohne Tenant-Zertifikat, ungültige Zahlen, unveränderten Zustand nach fehlerhaftem Import, Altwerte, besondere Mapping-Schlüssel, doppelte Umgebungen und tatsächlichen JSON-Download geprüft.
+Die bestehenden Vorschautests lesen jetzt `text_content()`: Bei geschlossenem HTML-`details` liefert `inner_text()` keinen Vorschautext. Damit prüfen die Tests weiterhin die tatsächlichen serialisierten Werte und vergleichen keine leeren Zeichenketten.
 
-Der echte Integrationslauf erstellt eine synthetische PPAC-CSV, führt den Collector aus, lädt dessen Fakten/Katalog ins Dashboard und kontrolliert Kosten, Agent-/Umgebungszuordnung sowie den geschützten CSV-Export. Externe Browser-HTTP-Anfragen werden durch die Tests als Fehler gewertet; es trat keine auf.
+Werkzeuge: Python **3.12.14**, Playwright **1.62.0**, jsonschema **4.26.0**, Chromium **156.0.8078.79**, Node.js **24.22.1**, Microsoft Power Query Parser **5.0.0**, PowerShell **7.4.13**. Der PowerShell-Download wurde gegen die SHA-256-Angabe des offiziellen Releases geprüft. Reproduzierbare Befehle stehen in der [Testanleitung](../tests/README.md).
 
-### Collector – 56 Prüfungen bestanden
+## Verbleibende Abnahme
 
-Enthalten sind Parsing der drei PowerShell-Skripte, Dezimalzahlen, Datumsformate, endliche Werte, kleine Personengruppen, unbekannte Aktivität, Singleton-Graph-Antworten, echte PPAC-Läufe mit Exit-Code und Fehlererhalt, Monatswechsel/Idempotenz, beschädigte Historie, erhaltene Währungen/Istkosten, Azure-Zeitgrenzen und Gutschriften, Literal-/Mehrdeutigkeitsprüfung der Azure-Zuordnung, Graph-Berichtsfenster und Aktivitätsfelder, begrenzte API-Ziele und `Retry-After`.
+1. Die gewählten Quellen mit echten Daten und den Rechten der Collector-App testen. Sichtbarkeit für den Discovery-Benutzer beweist keine Zugriffsrechte der App.
+2. Auf dem ausführenden Windows-Konto Zertifikatsgültigkeit, privaten Schlüssel und tatsächliche App-Anmeldung prüfen.
+3. Preise, SKU-/Meter-Zuordnungen, Reportfelder, Exportspalten und Anonymisierung im Zieltenant anhand bekannter Stichproben abstimmen.
+4. DAX und Power Query in Power BI ausführen sowie Refresh, Beziehungen und RLS mit den vorgesehenen Lesekonten prüfen. Die Syntaxprüfung ist kein Laufzeitnachweis.
+5. Inhaltlich überlappende Azure-/PPAC-Exporte vor dem Einlesen bereinigen. Ohne eindeutige Quellschlüssel kann das Paket kumulative Exportstände nicht zuverlässig deduplizieren. Fehlende historische Lizenzmonate werden nicht rekonstruiert.
 
-GitHub-Billing wird anhand nachgebildeter Antworten auf konfigurierte Pflichtabfragen und monatliche Aggregation geprüft. Der Pfad `/organizations/{org}/settings/billing/usage`, der String-Parameter `org` und die Filter `year`/`month` wurden anhand der offiziellen Octokit-OpenAPI-Typen 29.0.1 verifiziert. Dies bestätigt keine tatsächliche Erreichbarkeit oder Berechtigung im Kundenkonto. Ein simulierter Schreibfehler prüft die Wiederherstellung der bisherigen Ausgaben.
+Die bisherigen Prüfungen und Grenzen der Version 1.2 sind im [historischen Prüfbericht](06_Pruefbericht-v1.2.md) erhalten. Die bestehenden ZIP-Dateien im Repository sind ältere Paketstände; maßgeblich für Version 1.3 ist der überarbeitete Quellordner.
 
-### Syntax und statische Durchsicht
-
-Beide Inline-JavaScript-Anwendungen bestehen den Node-Parser. Alle drei M-Dateien bestehen den offiziellen Microsoft-Power-Query-Parser 5.0.0. DAX wurde manuell auf Datenmodell, Filter, Währungs-/Preislogik, Forecast und unbekannte Nutzung geprüft; eine DAX-Laufzeitprüfung hat nicht stattgefunden.
-
-## Leistung und Darstellung
-
-Ein synthetischer Einzeltest mit **12.000 Fakten und 120 Produkten** zeigte die erwarteten **1.200.000,00 EUR** ohne Browserfehler. Upload, Prüfung und Darstellung dauerten in dieser Instanz **0,836 Sekunden**. Dies ist eine lokale Rauchprüfung und kein allgemeiner Leistungsvergleich mit Version 1.1. Desktop (1440 px) sowie mobile Ansichten (390 px) wurden erfasst; der mobile Formularüberlauf wurde korrigiert und durch einen Regressionstest abgesichert.
-
-## Verbleibende Grenzen und Abnahme in der Zielumgebung
-
-1. Graph-/Azure-/GitHub-Zugriffe mit den vorgesehenen Rollen und Konten ausführen. Reportfelder, Anonymisierung, echte Abrechnungszeilen und Kostenstellenzuordnung anhand kleiner, bekannter Stichproben abstimmen.
-2. Power BI Desktop: M-Abfragen aktualisieren, DAX anlegen, Beziehungen und Währungsslicer prüfen. Anschließend RLS mit tatsächlichen Lesekonten für zugeordneten und nicht zugeordneten Fachbereich testen. Syntaxprüfung ersetzt diesen Schritt nicht.
-3. Katalogpreise, aktive Produkte, SKU-/Meter-Namen, Währungen, Kapazität und Jahresbudget kundenseitig pflegen. Preis 0 bei fehlenden Angaben bedeutet unvollständige Kosten. Automatische Preisversionierung je identischer Produkt-ID und Währungsumrechnung sind nicht implementiert.
-4. Nur nicht überlappende Exportbestände einlesen. Inhaltliche Dubletten kumulativer Azure-/PPAC-Dateien können ohne Quell-IDs nicht zuverlässig erkannt werden. Fehlende historische Lizenzmonate werden nicht rekonstruiert.
-5. Die Mindestgruppengröße ist keine garantierte Anonymisierung. Kleine Teilmengen, Zusatzwissen und Agent-/Umgebungsnamen benötigen weiterhin eine fachliche Datenschutz- und Zugriffsprüfung. Das Offline-Dashboard besitzt keine Zugriffskontrolle.
-6. Die Ausgabesicherung schützt vor erkannten Schreibfehlern; ein harter Prozess-/Systemabbruch kann eine Wiederherstellung aus `.finops-*` erfordern. Leser erst nach erfolgreichem Collector-Lauf aktualisieren.
-
-## Nachweise und Wiederholung
-
-- [Testanleitung](../tests/README.md)
-- [Browser-/Schema-/Integrationsergebnisse](Pruefergebnisse/browser-schema-tests.txt)
-- [Collector-Ergebnisse](Pruefergebnisse/collector-tests.txt)
-- [JavaScript-/M-Syntaxergebnisse](Pruefergebnisse/syntax-tests.txt)
-- [Original 1.1: sieben erwartete Regressionen](Pruefergebnisse/original-v1.1-regressions.txt)
-- [Lokale Leistungsmessung](Pruefergebnisse/performance.json)
-- [Desktopansicht](Pruefergebnisse/dashboard-desktop.png), [mobile Dashboardansicht](Pruefergebnisse/dashboard-mobile.png), [mobile Konfiguration](Pruefergebnisse/configuration-mobile.png)
-
-Werkzeuge im Testlauf: Python 3.12, Playwright 1.62.0, jsonschema 4.26.0, installiertes Chromium, Node.js 24.22.1 und PowerShell 7.4.13. PowerShell wurde aus dem offiziellen Release geladen und gegen dessen SHA-256-Datei geprüft; Testabhängigkeiten sind von der Laufzeit der beiden HTML-Anwendungen getrennt.

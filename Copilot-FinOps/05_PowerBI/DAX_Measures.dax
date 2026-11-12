@@ -95,13 +95,13 @@ SWITCH ( TRUE (),
 // Measures dürfen in CALCULATE nicht direkt rechts eines Spaltenfilters stehen.
 // Deshalb den letzten Monat vorab in einer skalaren Variablen auswerten.
 Lizenzen zugewiesen =
-VAR ende = [Letzter Ist-Monat]
+VAR ende = CALCULATE ( [Letzter Ist-Monat], KEEPFILTERS ( DimProdukt[abrechnungsart] = "ProUser" ) )
 RETURN IF ( NOT ISBLANK ( ende ), CALCULATE (
     SUM ( FactKosten[zugewiesen] ), REMOVEFILTERS ( DimDatum ),
     FactKosten[Datum] = ende, DimProdukt[abrechnungsart] = "ProUser" ) )
 
 Lizenzen aktiv =
-VAR ende = [Letzter Ist-Monat]
+VAR ende = CALCULATE ( [Letzter Ist-Monat], KEEPFILTERS ( DimProdukt[abrechnungsart] = "ProUser" ) )
 VAR unbekannt = CALCULATE ( COUNTROWS ( FactKosten ), REMOVEFILTERS ( DimDatum ),
     FactKosten[Datum] = ende, DimProdukt[abrechnungsart] = "ProUser", FactKosten[zugewiesen] > 0, ISBLANK ( FactKosten[aktiv] ) )
 RETURN IF ( NOT ISBLANK ( ende ) && unbekannt = 0, CALCULATE (
@@ -111,7 +111,7 @@ RETURN IF ( NOT ISBLANK ( ende ) && unbekannt = 0, CALCULATE (
 Auslastung = DIVIDE ( [Lizenzen aktiv], [Lizenzen zugewiesen] )
 
 Einsparpotenzial Monat =
-VAR ende = [Letzter Ist-Monat]
+VAR ende = CALCULATE ( [Letzter Ist-Monat], KEEPFILTERS ( DimProdukt[abrechnungsart] = "ProUser" ) )
 VAR zeilen = CALCULATETABLE ( FactKosten, REMOVEFILTERS ( DimDatum ),
     FactKosten[Datum] = ende, DimProdukt[abrechnungsart] = "ProUser", FactKosten[zugewiesen] > 0 )
 VAR unbekannt = COUNTROWS ( FILTER ( zeilen, ISBLANK ( FactKosten[aktiv] ) || ISBLANK ( FactKosten[Preis] ) ) )
@@ -119,11 +119,12 @@ RETURN IF ( NOT ISBLANK ( ende ) && [Währungen im Kontext] = 1 && [Berichtswäh
     SUMX ( zeilen, MAX ( 0, FactKosten[zugewiesen] - FactKosten[aktiv] ) * FactKosten[Preis] ) )
 
 Unlizenzierte Nutzer =
-VAR ende = [Letzter Ist-Monat]
+VAR ende = CALCULATE ( [Letzter Ist-Monat], KEEPFILTERS ( DimProdukt[abrechnungsart] = "Kostenfrei" ) )
 VAR unbekannt = CALCULATE ( COUNTROWS ( FactKosten ), REMOVEFILTERS ( DimDatum ),
     FactKosten[Datum] = ende, ISBLANK ( FactKosten[unlizenziert] ), DimProdukt[abrechnungsart] = "Kostenfrei" )
 RETURN IF ( NOT ISBLANK ( ende ) && unbekannt = 0, CALCULATE (
-    SUM ( FactKosten[unlizenziert] ), REMOVEFILTERS ( DimDatum ), FactKosten[Datum] = ende ) )
+    SUM ( FactKosten[unlizenziert] ), REMOVEFILTERS ( DimDatum ), FactKosten[Datum] = ende,
+    KEEPFILTERS ( DimProdukt[abrechnungsart] = "Kostenfrei" ) ) )
 
 // Ein Kapazitätsprodukt auswählen: Credits, SCU und andere Einheiten sind nicht addierbar.
 Credits verbraucht =
@@ -144,3 +145,4 @@ Produkte ohne Preis = CALCULATE ( DISTINCTCOUNT ( FactKosten[produktId] ), FactK
 
 // ---------- Row-Level Security (Rolle Fachbereichsleitung, Filter auf DimFachbereich) ----------
 // [Fachbereich] IN CALCULATETABLE ( VALUES ( RLS_Mapping[Fachbereich] ), RLS_Mapping[UPN] = USERPRINCIPALNAME () )
+

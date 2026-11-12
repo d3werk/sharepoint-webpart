@@ -1,0 +1,80 @@
+PASS: Syntax Collect-CopilotCosts.ps1
+PASS: Syntax Einrichten-CopilotFinOps.ps1
+PASS: Syntax Install-Voraussetzungen.ps1
+PASS: Syntax New-AppZertifikat.ps1
+PASS: decimal comma accepted
+PASS: credit adjustment accepted
+PASS: ambiguous grouped numeric rejected
+PASS: NaN rejected
+PASS: negative credit quantity rejected
+PASS: Azure numeric YYYYMMDD parsed as date
+PASS: German import date deterministic
+PASS: ambiguous PPAC slash date rejected
+PASS: invalid fact month rejected
+PASS: infinite fact quantity rejected
+PASS: missing activity remains unknown
+PASS: only person-count groups are pooled
+PASS: small group region removed and counts preserved
+PASS: pooled activity stays unknown if any input is unknown
+PASS: financial agent dimension preserved
+PASS: GitHub small person groups pooled
+2026-11-12 12:12:59Z [INFO] Graph: 1 SKUs, 1 Benutzer gelesen
+2026-11-12 12:12:59Z [WARN] Copilot-Nutzungsbericht nicht verfügbar: Offline: usage report unavailable
+PASS: singleton Graph collections handled
+PASS: failed Graph usage never reported as inactive
+2026-11-12 12:13:01Z [INFO] Start – Konfiguration: /tmp/finops-test-e3fd13f9-69a4-4b3b-8ef3-329f57f2e548/config.json
+2026-11-12 12:13:01Z [INFO] Lizenzkatalog: 1 aktive Produkte
+2026-11-12 12:13:02Z [INFO] PPAC: 1 Datensätze
+2026-11-12 12:13:02Z [INFO] Fertig: 1 Datensätze, 0 Quelle(n) mit Fehler
+PASS: offline PPAC-only collector works without tenant credentials
+PASS: PPAC aggregates decimal credits and filters date window
+PASS: pipe characters survive aggregation in every dimension
+PASS: CSV spreadsheet formula neutralized
+2026-11-12 12:13:03Z [INFO] Start – Konfiguration: /tmp/finops-test-e3fd13f9-69a4-4b3b-8ef3-329f57f2e548/config.json
+2026-11-12 12:13:03Z [INFO] Lizenzkatalog: 1 aktive Produkte
+2026-11-12 12:13:04Z [ERROR] PPAC fehlgeschlagen: broken.csv: Spalte 'Agent' nicht gefunden – Trennzeichen/Spaltennamen prüfen
+2026-11-12 12:13:04Z [ERROR] Ergebnisdateien unverändert: Mindestens eine aktivierte Quelle ist fehlgeschlagen.
+PASS: missing mapped import column fails the source
+PASS: failed run preserves previous complete facts
+PASS: unknown source rejected
+PASS: fractional month window rejected
+PASS: Graph configuration still requires tenant credentials
+PASS: rollover retains past Graph and GitHub seats, excludes old imports, usage and out-of-window snapshots
+PASS: current license snapshot replaces previous current-month rows
+PASS: historical merge is idempotent
+PASS: fresh historic snapshot replaces stored same month/product/source
+PASS: corrupt historical JSON blocks destructive update
+PASS: invalid historical fact blocks destructive update
+PASS: privacy pooling preserves actual costs and separates currencies
+PASS: Azure includes midnight cutoff and sums adjustments
+PASS: Azure source currency and pipe dimensions preserved
+2026-11-12 12:13:04Z [INFO] Graph: 0 SKUs, 0 Benutzer gelesen
+PASS: Graph 90-day inactivity uses D90 report window
+2026-11-12 12:13:04Z [INFO] Graph: 0 SKUs, 0 Benutzer gelesen
+PASS: Graph 180-day inactivity uses D180 report window
+2026-11-12 12:13:04Z [WARN] HTTP 429 – erneuter Versuch in 120 s (https://graph.microsoft.com/v1.0/test)
+PASS: API respects Retry-After and recovers on next attempt
+PASS: bearer token never sent to unknown API host
+PASS: bearer token never sent without HTTPS
+PASS: configured GitHub billing failures fail the source
+2026-11-12 12:13:05Z [INFO] GitHub-Billing nicht aktiviert: kein Verbrauchsprodukt mit gepflegtem githubSku.
+PASS: unmapped GitHub billing skipped while seat snapshot collected
+2026-11-12 12:13:05Z [INFO] Graph: 1 SKUs, 1 Benutzer gelesen
+PASS: actual microsoft365CopilotLastActivityDate recognized
+PASS: GitHub requests every retained month with supported filters
+PASS: GitHub usage aggregated by month with USD actual costs
+PASS: disabled duplicate/case-only catalog ID rejected
+PASS: empty facts exported as JSON array
+PASS: empty CSV retains schema headers
+PASS: publication failures are surfaced
+PASS: publication failure restores previous complete output files
+PASS: Azure Contains mapping treats wildcard characters literally
+PASS: ambiguous Azure product mapping rejected
+PASS: complete Azure Query response retains actual costs and usage
+PASS: configured Azure tag column maps to department when API uses the tag name
+PASS: missing Azure department tag column is not silently treated as untagged
+PASS: missing Azure cost column fails rather than inventing zero costs
+PASS: null Azure cost cell is unknown and cannot become zero
+PASS: malformed Azure row width rejected
+PASS: duplicate Azure result column rejected
+Collector offline regressions: 64 passed.

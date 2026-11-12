@@ -1,0 +1,88 @@
+What if: Performing the operation "Aktionsvorschau: Konfiguration vorbereiten, vorhandene Datei sichern und speichern; ggf. Azure-Metadaten lesen (keine Konfigurationsprüfung)" on target "/tmp/finops-setup-51db636a-be15-437a-a5cc-a632a497d025/not-created/config.json".
+PASS: WhatIf creates no directories or files and never signs in
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+PPAC: CSV-Kopfzeile mit PpacColumnMap abgleichen; Standardspalten Date, Environment, Agent, Credits.
+Quellen: PPAC; Azure-Verfahren: Export
+Nur lokale Einstellungen werden gespeichert; Berechtigungen, App-Registrierung und Preise separat prüfen.
+Konfiguration formal gültig. Keine Anmeldung oder Datenabfrage ausgeführt.
+Gespeichert: /tmp/finops-setup-51db636a-be15-437a-a5cc-a632a497d025/config.json
+Nächster Schritt: Konfigurationsmaske öffnen und diese config.json laden; danach Install-Voraussetzungen.ps1 und Start-Collector.cmd ausführen.
+PASS: CSV setup works without credentials or Azure modules
+PASS: new config contains runnable defaults and product mappings
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+PPAC: CSV-Kopfzeile mit PpacColumnMap abgleichen; Standardspalten Date, Environment, Agent, Credits.
+Quellen: PPAC; Azure-Verfahren: Export
+Nur lokale Einstellungen werden gespeichert; Berechtigungen, App-Registrierung und Preise separat prüfen.
+Konfiguration formal gültig. Keine Anmeldung oder Datenabfrage ausgeführt.
+Sicherung: /tmp/finops-setup-51db636a-be15-437a-a5cc-a632a497d025/config.json.20261112_121259_249.094cd8f2.bak
+Gespeichert: /tmp/finops-setup-51db636a-be15-437a-a5cc-a632a497d025/config.json
+Nächster Schritt: Konfigurationsmaske öffnen und diese config.json laden; danach Install-Voraussetzungen.ps1 und Start-Collector.cmd ausführen.
+PASS: overwrite keeps exact previous file in a dated backup
+PASS: unknown nested settings survive setup
+PASS: explicit PPAC columns preserved while empty legacy defaults repaired
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+PPAC: CSV-Kopfzeile mit PpacColumnMap abgleichen; Standardspalten Date, Environment, Agent, Credits.
+Quellen: PPAC; Azure-Verfahren: Export
+Nur lokale Einstellungen werden gespeichert; Berechtigungen, App-Registrierung und Preise separat prüfen.
+PASS: setup rejects invalid retained settings using Collector validation
+PASS: failed validation leaves original file and backups unchanged
+PASS: staging removed after failed validation
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+PASS: explicit empty source selection rejected
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+WARNING: Konfiguration kann hier erstellt werden. Der Zertifikats-Collector benötigt Windows und das Zertifikat unter dem ausführenden Konto.
+Quellen: Azure; Azure-Verfahren: Query
+Nur lokale Einstellungen werden gespeichert; Berechtigungen, App-Registrierung und Preise separat prüfen.
+Konfiguration formal gültig. Keine Anmeldung oder Datenabfrage ausgeführt.
+Gespeichert: /tmp/finops-setup-51db636a-be15-437a-a5cc-a632a497d025/query.json
+Nächster Schritt: Konfigurationsmaske öffnen und diese config.json laden; danach Install-Voraussetzungen.ps1 und Start-Collector.cmd ausführen.
+PASS: manual query setup normalizes and deduplicates subscription IDs
+PASS: certificate fingerprint normalized consistently with browser
+Konfiguration formal gültig. Keine Anmeldung oder Datenabfrage ausgeführt.
+PASS: ValidateOnly does not collect, sign in, or create output directories
+Konfiguration formal gültig. Keine Anmeldung oder Datenabfrage ausgeführt.
+PASS: valid preview API dates remain supported
+PASS: impossible API calendar date rejected
+PASS: empty Azure scopes cannot silently publish empty query costs
+PASS: duplicate Azure scopes cannot double costs
+PASS: malformed app ID rejected before authentication
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+Benutzeranmeldung zur Ermittlung von Tenant/Abonnements. Der Collector nutzt später eure App und ihr Zertifikat.
+Ermittelter Tenant: 11111111-1111-1111-1111-111111111111. Diese ID muss zur Collector-App gehören.
+1: A (33333333-3333-3333-3333-333333333333)
+2: B (44444444-4444-4444-4444-444444444444)
+WARNING: Konfiguration kann hier erstellt werden. Der Zertifikats-Collector benötigt Windows und das Zertifikat unter dem ausführenden Konto.
+Quellen: Azure; Azure-Verfahren: Query
+Nur lokale Einstellungen werden gespeichert; Berechtigungen, App-Registrierung und Preise separat prüfen.
+Konfiguration formal gültig. Keine Anmeldung oder Datenabfrage ausgeführt.
+Sicherung: /tmp/finops-setup-51db636a-be15-437a-a5cc-a632a497d025/query.json.20261112_121259_665.ee5774cf.bak
+Gespeichert: /tmp/finops-setup-51db636a-be15-437a-a5cc-a632a497d025/query.json
+Nächster Schritt: Konfigurationsmaske öffnen und diese config.json laden; danach Install-Voraussetzungen.ps1 und Start-Collector.cmd ausführen.
+PASS: discovery explicitly uses retained tenant instead of another home tenant
+PASS: discovery saves only explicitly chosen visible subscription
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+Benutzeranmeldung zur Ermittlung von Tenant/Abonnements. Der Collector nutzt später eure App und ihr Zertifikat.
+Ermittelter Tenant: 11111111-1111-1111-1111-111111111111. Diese ID muss zur Collector-App gehören.
+1: A (33333333-3333-3333-3333-333333333333)
+2: B (44444444-4444-4444-4444-444444444444)
+PASS: noninteractive discovery never selects all subscriptions implicitly
+PASS: missing subscription selection leaves prior config unchanged
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+Benutzeranmeldung zur Ermittlung von Tenant/Abonnements. Der Collector nutzt später eure App und ihr Zertifikat.
+Ermittelter Tenant: 11111111-1111-1111-1111-111111111111. Diese ID muss zur Collector-App gehören.
+1: A (33333333-3333-3333-3333-333333333333)
+2: B (44444444-4444-4444-4444-444444444444)
+PASS: subscription outside visible tenant rejected
+Copilot-FinOps: lokale Einrichtung
+Tenant = Microsoft-Verzeichnis; Client-ID = ID eurer bereits registrierten Collector-App.
+Benutzeranmeldung zur Ermittlung von Tenant/Abonnements. Der Collector nutzt später eure App und ihr Zertifikat.
+PASS: unexpected tenant switch rejected before preserving unrelated app credentials
+Setup offline regressions: 24 passed.

@@ -21,16 +21,25 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:6px 8px;b
 td.n,th.n{text-align:right}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .tag{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--bd);font-weight:400}.warn{color:var(--wa)}.err{color:var(--er)}.ok{color:var(--ok)}
 svg text{fill:var(--mu);font-size:11px}.hidden{display:none}.note{color:var(--mu);font-size:12px;margin-top:8px}
+.intro{margin:14px 22px 0}.intro p{margin:6px 0}.intro ol{padding-left:22px}.intro summary{cursor:pointer;font-weight:600}.intro a{color:var(--ac)}.filters .btn{align-self:end}.file-state{display:flex;flex-wrap:wrap;gap:6px 18px;padding:0;list-style:none;font-size:12px}.import-error{border-left:4px solid var(--er);padding:8px 12px;color:var(--er)}
 @media print{header nav,.filters,.btn{display:none}body{background:#fff;color:#000}.card{break-inside:avoid;border-color:#ccc}.page{display:block!important}}
 </style></head><body>
 <header><h1>Copilot-FinOps-Dashboard <span class="tag" id="stand"></span></h1>
-<nav id="nav"><button type="button" data-p="uebersicht" class="on">Übersicht</button><button type="button" data-p="lizenzen">Lizenzen &amp; User</button><button type="button" data-p="credits">Credits &amp; Verbrauch</button><button type="button" data-p="katalog">Lizenzkatalog</button></nav>
+<nav id="nav" aria-label="Dashboard-Bereiche"><button type="button" data-p="uebersicht" class="on" aria-pressed="true" aria-controls="p-uebersicht">Übersicht</button><button type="button" data-p="lizenzen" aria-pressed="false" aria-controls="p-lizenzen">Lizenzen &amp; User</button><button type="button" data-p="credits" aria-pressed="false" aria-controls="p-credits">Credits &amp; Verbrauch</button><button type="button" data-p="katalog" aria-pressed="false" aria-controls="p-katalog">Lizenzkatalog</button></nav>
 <div><button type="button" class="btn" id="csv">CSV-Export</button> <button type="button" class="btn" id="print">Drucken</button> <button type="button" class="btn" id="theme">Hell/Dunkel</button>
 <button type="button" class="btn" id="load" title="facts.json, lizenzkatalog.json, budget.json, kapazitaet.json (Mehrfachauswahl)">Daten laden</button><input type="file" id="file" accept=".json,application/json" multiple hidden></div></header>
+<section class="card intro" aria-labelledby="dataMode"><h2 id="dataMode"></h2><p id="dataSummary"></p>
+<ul class="file-state" id="fileState" aria-label="Geladene Daten"></ul>
+<details id="importHelp" open><summary>So lädst du deine eigenen Daten</summary><ol>
+<li>Die <a href="../02_Konfiguration/Konfiguration-CopilotFinOps.html">Konfiguration</a> erstellen und den Collector ausführen.</li>
+<li>Auf <b>Daten laden</b> klicken und aus <b>06_Daten/out</b> die Dateien <b>facts.json</b> und <b>lizenzkatalog.json</b> auswählen. Beide Dateien können gemeinsam oder nacheinander geladen werden.</li>
+<li>Optional <b>budget.json</b> für Jahresbudgets und <b>kapazitaet.json</b> für die Anzahl der Kapazitätspakete ergänzen. Danach Zeitraum, Fachbereich und Währung auswählen.</li>
+</ol><p class="note">Die Dateien werden ausschließlich in diesem Browser verarbeitet. Beim Neuladen der Seite beginnt wieder die Demo. Ein Import ersetzt die bisher geladenen Daten desselben Typs; Fakten werden dabei nicht angehängt. CSV-Dateien gehören in den Collector, das Dashboard liest JSON.</p></details>
+<p id="importError" class="import-error" role="alert" hidden></p></section>
 <div class="filters">
 <label>Von<input type="month" id="fVon"></label><label>Bis<input type="month" id="fBis"></label>
 <label>Produktfamilie<select id="fProd"></select></label><label>Fachbereich<select id="fFb"></select></label>
-<label>Währung<select id="fCur"></select></label><label>Region<select id="fReg"></select></label><label>Abrechnungsart<select id="fArt"></select></label></div>
+<label>Währung<select id="fCur"></select></label><label>Region<select id="fReg"></select></label><label>Abrechnungsart<select id="fArt"></select></label><button type="button" class="btn" id="resetFilters">Filter zurücksetzen</button></div>
 <main>
 <p id="status" class="note" role="status" aria-live="polite"></p>
 <p class="note">Jahreswerte beziehen sich auf Januar bis zum letzten ausgewählten Ist-Monat; übrige Filter gelten weiter. Budgets sind Jahresbudgets in der Standardwährung. Fremdwährungen werden getrennt angezeigt; es findet keine Umrechnung statt.</p>
@@ -42,15 +51,15 @@ svg text{fill:var(--mu);font-size:11px}.hidden{display:none}.note{color:var(--mu
  <div class="card"><h2>Kosten nach Abrechnungsart</h2><div id="chArt"></div><h2 style="margin-top:14px">Kosten nach Region</h2><div id="chReg"></div></div></div>
 </section>
 <section class="page hidden" id="p-lizenzen"><div class="grid">
- <div class="card"><h2>Auslastung zugewiesener Lizenzen (letzter Monat)</h2><div id="tbLiz"></div></div>
- <div class="card"><h2>Unlizenzierte Nutzer mit Copilot-/Agent-Verbrauch</h2><div id="tbUnl"></div>
+ <div class="card"><h2 id="licenseTitle">Auslastung zugewiesener Lizenzen (letzter Monat)</h2><div id="tbLiz"></div><p class="note">„Aktiv“ richtet sich nach dem im Collector eingestellten Rückblick. Das rechnerische Einsparpotenzial ist keine Kündigungsempfehlung; Vertragslaufzeiten und tatsächlichen Bedarf prüfen.</p></div>
+ <div class="card"><h2 id="unlicensedTitle">Unlizenzierte Nutzer mit Copilot-/Agent-Verbrauch</h2><div id="tbUnl"></div>
  <p class="note">Aggregiert je Fachbereich – keine personenbezogene Auswertung (Betriebsrat/DSGVO).</p></div></div></section>
 <section class="page hidden" id="p-credits"><div class="grid">
  <div class="card"><h2 id="capacityTitle">Kapazität und Verbrauch</h2><p class="note">Die konfigurierte Kapazität ist ein gemeinsamer Pool. Filter zeigen einen Teilverbrauch, keine zugeteilte Fachbereichskapazität.</p><div id="credKpi"></div><div id="chCred"></div></div>
  <div class="card"><h2>Verbrauch je Agent / Umgebung</h2><div id="tbAgent"></div></div>
  <div class="card"><h2>Verbrauchskosten (PAYG) je Fachbereich</h2><div id="chPayg"></div></div></div></section>
 <section class="page hidden" id="p-katalog"><div class="card"><h2>Lizenzkatalog (aus lizenzkatalog.json – ohne Code-Änderung erweiterbar)</h2><div id="tbKat"></div>
-<p class="note">Preise mit „[prüfen]“ werden mit 0 gerechnet und in den KPIs als „Produkte ohne Preis“ gezählt.</p></div></section>
+<p class="note">Die Berechnung verwendet vorhandene Ist-Kosten, sonst den Kundenpreis, ersatzweise den Listenpreis. Fehlen beide Preise oder gilt der Preis im ausgewerteten Monat nicht, wird der Betrag mit 0 angesetzt und als „Produkt ohne Preis“ gezählt. Solche Summen sind unvollständig.</p></div></section>
 </main>
 <script>
 "use strict";
@@ -79,6 +88,7 @@ function demoFacts(){const f=[],fb=["Vertrieb","Personal","IT","Finanzen","Produ
 /* ===== Zustand und lokale Importprüfung ===== */
 let CAT=DEMO_CATALOG,FACTS=demoFacts(),BUDGET=DEMO_BUDGET,CAP={produktId:"CS-CAPACITY",packs:4},DEMO=true;
 let productIndex=new Map(),haveFacts=false,haveCatalog=false,importMessage="";
+let haveBudget=false,haveCapacity=false;
 const $=id=>document.getElementById(id);
 const idKey=id=>String(id??"").toLowerCase();
 const own=(o,k)=>Object.hasOwn(o,k),record=o=>o!==null&&typeof o==="object"&&!Array.isArray(o);
@@ -135,11 +145,13 @@ function prepare(cat,facts,demo){const index=new Map(cat.produkte.map(p=>[idKey(
 function enrich(){const prepared=prepare(CAT,FACTS,DEMO);productIndex=prepared.index;FACTS=prepared.rows;}
 
 function opts(sel,vals){sel.innerHTML='<option value="">Alle</option>'+[...new Set(vals)].filter(Boolean).sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");}
-function initFilters(){const ms=FACTS.map(f=>f.monat).sort();$("fVon").value=ms[0]||"";$("fBis").value=ms.at(-1)||"";
+function initFilters(preserve=false){const previous=preserve?Object.fromEntries([...document.querySelectorAll(".filters input,.filters select")].map(el=>[el.id,el.value])):{};
+ const ms=FACTS.map(f=>f.monat).sort();$("fVon").value=ms[0]||"";$("fBis").value=ms.at(-1)||"";
  opts($("fProd"),FACTS.map(f=>f._fam));opts($("fFb"),FACTS.map(f=>f.fachbereich));opts($("fReg"),FACTS.map(f=>f.region));
  $("fArt").innerHTML='<option value="">Alle</option>'+Object.entries(ART).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
  const cs=[...new Set(FACTS.map(f=>f._cur))].sort();if(!cs.length)cs.push(standard());
  $("fCur").innerHTML=cs.map(c=>`<option>${esc(c)}</option>`).join("");$("fCur").value=cs.includes(standard())?standard():cs[0];
+ for(const[id,value]of Object.entries(previous)){const el=$(id);if(el.tagName!=="SELECT"||[...el.options].some(o=>o.value===value))el.value=value;}
 }
 function filtered(ignoreDates=false){let v=$("fVon").value,b=$("fBis").value;if(v&&b&&v>b)[v,b]=[b,v];
  const pr=$("fProd").value,fb=$("fFb").value,rg=$("fReg").value,a=$("fArt").value,c=cur();
@@ -184,29 +196,37 @@ function render(){const F=filtered(),lastM=F.reduce((m,f)=>f.monat>m?f.monat:m,"
  const fbY=sumBy(annual,"fachbereich");table($("tbBudget"),["Fachbereich","Budget","Ist YTD","Ausschöpfung","Status"],[...new Set([...Object.keys(budgets),...Object.keys(fbY)])].filter(k=>!fbSel||k===fbSel).sort().map(k=>{
   const has=own(budgets,k),b=budgets[k],i=fbY[k]||0,q=has&&b>0?i/b:null,c=!has?"warn":(b===0?i>0:q>1)?"err":q>.9?"warn":"ok";
   return[esc(k),has?eur(b):"nicht hinterlegt",eur(i),q==null?(has&&b===0?(i>0?"überschritten":"0 %"):"–"):Math.round(q*100)+" %",`<span class="${c}">${c==="err"?"überschritten":c==="warn"?"prüfen":"im Rahmen"}</span>`];}),[1,2,3]);
- const lz=Object.create(null);F.filter(f=>f.monat===lastM&&f._art==="ProUser"&&f.zugewiesen>0).forEach(f=>{const k=JSON.stringify([idKey(f.produktId),f.fachbereich]);
+ const licenseLastM=F.filter(f=>f._art==="ProUser").reduce((m,f)=>f.monat>m?f.monat:m,""),unlicensedLastM=F.filter(f=>f._art==="Kostenfrei").reduce((m,f)=>f.monat>m?f.monat:m,"");
+ $("licenseTitle").textContent="Auslastung zugewiesener Lizenzen ("+(licenseLastM||"keine Daten")+")";
+ $("unlicensedTitle").textContent="Unlizenzierte Nutzer mit Copilot-/Agent-Verbrauch ("+(unlicensedLastM||"keine Daten")+")";
+ const lz=Object.create(null);F.filter(f=>f.monat===licenseLastM&&f._art==="ProUser"&&f.zugewiesen>0).forEach(f=>{const k=JSON.stringify([idKey(f.produktId),f.fachbereich]);
   lz[k]??={p:produkt(f.produktId)?.produkt||f.produktId,fb:f.fachbereich,z:0,a:0,unknown:false,pr:produkt(f.produktId)?.waehrung===cur()?preis(produkt(f.produktId),f.monat):null};lz[k].z+=f.zugewiesen;lz[k].a+=f.aktiv??0;lz[k].unknown||=f.aktiv==null;
  });
  table($("tbLiz"),["Produkt","Fachbereich","Zugewiesen","Aktiv","Auslastung","Inaktiv","Einsparpotenzial/Monat"],Object.values(lz).map(r=>{const q=r.z?r.a/r.z:0,c=q<.6?"err":q<.8?"warn":"ok";
   return[esc(r.p),esc(r.fb),num(r.z),r.unknown?"nicht verfügbar":num(r.a),r.unknown?"–":`<span class="${c}">${Math.round(q*100)} %</span>`,r.unknown?"–":num(r.z-r.a),r.unknown?"–":r.pr==null?'<span class="warn">[Preis prüfen]</span>':eur((r.z-r.a)*r.pr)];}),[2,3,4,5,6]);
- const payg=sumBy(F.filter(f=>f.monat===lastM&&f._art==="Verbrauch"),"fachbereich");
- table($("tbUnl"),["Fachbereich","Unlizenzierte aktive Nutzer","PAYG-Kosten (Monat)"],Object.entries(sumBy(F.filter(f=>f.monat===lastM&&f.unlizenziert!=null),"fachbereich",f=>f.unlizenziert)).map(([k,v])=>[esc(k),num(v),eur(payg[k]||0)]),[1,2]);
+ const payg=sumBy(F.filter(f=>f.monat===unlicensedLastM&&f._art==="Verbrauch"),"fachbereich");
+ table($("tbUnl"),["Fachbereich","Unlizenzierte aktive Nutzer","PAYG-Kosten (gleicher Monat)"],Object.entries(sumBy(F.filter(f=>f.monat===unlicensedLastM&&f._art==="Kostenfrei"&&f.unlizenziert!=null),"fachbereich",f=>f.unlizenziert)).map(([k,v])=>[esc(k),num(v),own(payg,k)?eur(payg[k]):"nicht verfügbar"]),[1,2]);
  const capacityIds=[...new Set(F.filter(f=>f._art==="Kapazitaet").map(f=>idKey(f.produktId)))];
  const capacityId=CAP?idKey(CAP.produktId):capacityIds.length===1?capacityIds[0]:null,cp=produkt(capacityId);
  const C=capacityId&&cp?.abrechnungsart==="Kapazitaet"?F.filter(f=>idKey(f.produktId)===capacityId):[],unit=cp?.einheit||"Einheiten";
  $("capacityTitle").textContent=cp?cp.produkt+" – Kapazität und Verbrauch":"Kapazität und Verbrauch";
  const jeEinheit=finite(cp?.kapazitaetJeEinheit)?cp.kapazitaetJeEinheit:DEMO?cp?.demoKapazitaet:null;
- const capM=finite(jeEinheit)&&CAP&&cp?.abrechnungsart==="Kapazitaet"?jeEinheit*CAP.packs:null,cM=sumBy(C,"monat",f=>f.menge),used=cM[lastM]||0,cfc=forecast(cM),hit=capM!==null?Object.entries(cfc).find(([,v])=>v>capM):null;
- const hitLabel=capM===null?"–":used>capM?"bereits überschritten":hit?hit[0]:(lastM.endsWith("-12")||Object.keys(cfc).length)?"keine":"nicht verfügbar";
- $("credKpi").innerHTML=`<div class="kpis"><div class="card kpi"><div class="l">Kapazität/Monat</div><div class="v">${capM!==null?num(capM):'<span class="warn">[prüfen]</span>'}</div></div><div class="card kpi"><div class="l">Verbraucht ${esc(lastM)} (${esc(unit)})</div><div class="v">${num(used)}</div></div><div class="card kpi"><div class="l">Restkapazität</div><div class="v ${capM!==null&&used>capM?"err":""}">${capM!==null?num(capM-used):"–"}</div></div><div class="card kpi"><div class="l">Prognose Überschreitung</div><div class="v ${capM!==null&&(hit||used>capM)?"warn":""}">${esc(hitLabel)}</div></div></div>`;
+ const capM=finite(jeEinheit)&&CAP&&cp?.abrechnungsart==="Kapazitaet"?jeEinheit*CAP.packs:null,cM=sumBy(C,"monat",f=>f.menge),capacityLastM=Object.keys(cM).sort().at(-1)||"",used=capacityLastM?cM[capacityLastM]:null,cfc=forecast(cM),hit=capM!==null?Object.entries(cfc).find(([,v])=>v>capM):null;
+ const hitLabel=used===null?"nicht verfügbar":capM===null?"–":used>capM?"bereits überschritten":hit?hit[0]:(capacityLastM.endsWith("-12")||Object.keys(cfc).length)?"keine":"nicht verfügbar";
+ $("credKpi").innerHTML=`<div class="kpis"><div class="card kpi"><div class="l">Kapazität/Monat</div><div class="v">${capM!==null?num(capM):'<span class="warn">[prüfen]</span>'}</div></div><div class="card kpi"><div class="l">Verbraucht ${esc(capacityLastM||"–")} (${esc(unit)})</div><div class="v">${used===null?"nicht verfügbar":num(used)}</div></div><div class="card kpi"><div class="l">Restkapazität</div><div class="v ${capM!==null&&used!==null&&used>capM?"err":""}">${capM!==null&&used!==null?num(capM-used):"–"}</div></div><div class="card kpi"><div class="l">Prognose Überschreitung</div><div class="v ${capM!==null&&used!==null&&(hit||used>capM)?"warn":""}">${esc(hitLabel)}</div></div></div>`;
  lineChart($("chCred"),cM,cfc,{cap:capM});const ag=Object.create(null);C.forEach(f=>{const k=JSON.stringify([f.agent||"–",f.umgebung||"–",f.fachbereich]);ag[k]=(ag[k]||0)+f.menge;});
  table($("tbAgent"),["Agent","Umgebung","Fachbereich",esc(unit)],Object.entries(ag).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[...JSON.parse(k).map(esc),num(v)]),[3]);barChart($("chPayg"),sumBy(F.filter(f=>f._art==="Verbrauch"),"fachbereich"),{colorIdx:1});
  table($("tbKat"),["Produkt-ID","Produkt","Familie","Abrechnung","Einheit","Kundenpreis","Währung","Preisbasis","Gültig ab","Quelle"],CAT.produkte.map(p=>[esc(p.produktId),esc(p.produkt),esc(p.produktfamilie),esc(ART[p.abrechnungsart]||p.abrechnungsart),esc(p.einheit),finite(p.kundenpreis)?p.kundenpreis.toLocaleString("de-DE"):`<span class="warn">${esc(p.kundenpreis)}</span>`,esc(p.waehrung),esc(p.preisbasis||"Monat"),esc(p.gueltigAb),esc(p.datenquelle)]));
  $("stand").textContent=DEMO?"Beispieldaten – fiktive Demo-Preise":"Stand: "+(lastM||"keine Fakten");
+ $("dataMode").textContent=DEMO?"Vorschau mit Beispieldaten":"Auswertung deiner Dateien";
+ $("dataSummary").textContent=DEMO?"Alle angezeigten Werte sind eine Demo mit fiktiven Preisen. Für eine eigene Auswertung zuerst Fakten und Lizenzkatalog laden.":num(F.length)+" von "+num(FACTS.length)+" Fakten im gewählten Filter. Die Kostensummen gelten ausschließlich für "+cur()+".";
+ $("fileState").innerHTML=DEMO?"":[["Fakten",haveFacts],["Lizenzkatalog",haveCatalog],["Jahresbudget (optional)",haveBudget],["Kapazität (optional)",haveCapacity]].map(([label,loaded])=>`<li>${loaded?"✓":"–"} ${label}: ${loaded?"geladen":"nicht geladen"}</li>`).join("");
  const notices=[importMessage];
  if(!CAP&&capacityIds.length===1)notices.push("Verbrauch für "+cp.produkt+" wird angezeigt; Packanzahl und Kapazität sind unbekannt. Bei Bedarf kapazitaet.json laden.");
  if(!CAP&&capacityIds.length>1)notices.push("Mehrere Kapazitätsprodukte: Verbrauch wird nicht addiert. kapazitaet.json mit der gewünschten produktId laden oder die Produktauswahl auf genau ein Kapazitätsprodukt eingrenzen.");
  if(CAP&&cp?.abrechnungsart!=="Kapazitaet")notices.push("Konfiguriertes Kapazitätsprodukt fehlt im Katalog oder ist kein Kapazitätsprodukt; kapazitaet.json und Katalog prüfen.");
+ if(cp?.abrechnungsart==="Kapazitaet"&&!C.length)notices.push("Für das Kapazitätsprodukt liegen im gewählten Filter keine Verbrauchsdaten vor; ein fehlender Monatswert ist kein Nullverbrauch.");
+ if(capacityLastM&&capacityLastM!==lastM)notices.push("Letzter vorhandener Kapazitätsverbrauch: "+capacityLastM+". Andere Quellen reichen bis "+lastM+".");
 if(annual.some(f=>f._preisFehlt))notices.push("Jahreswerte sind unvollständig: Fehlende Preise werden mit 0 angesetzt.");if(F.some(f=>f._currencyMismatch))notices.push("Preiswährung weicht von der Faktwährung ab; ohne Ist-Kosten wird kein Betrag berechnet. Es findet keine Umrechnung statt.");if(!DEMO&&!haveFacts)notices.push("Noch keine facts.json geladen.");if(!DEMO&&!haveCatalog)notices.push("Noch kein Lizenzkatalog geladen; Produktzuordnung und Preise fehlen.");
  if(!DEMO&&FACTS.some(f=>!f.waehrung&&!produkt(f.produktId)))notices.push("Währung unbekannter Produkte ohne waehrung wird als Standardwährung angenommen; Quelldaten prüfen.");
  if(!DEMO&&!Object.keys(BUDGET).length)notices.push("Keine Jahresbudgets geladen.");if(new Set(FACTS.map(f=>f._cur)).size>1)notices.push("Mehrere Währungen: Auswertung zeigt ausschließlich "+cur()+".");
@@ -216,6 +236,7 @@ if(annual.some(f=>f._preisFehlt))notices.push("Jahreswerte sind unvollständig: 
 /* ===== Interaktion ===== */
 $("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#nav button").forEach(x=>{x.classList.toggle("on",x===b);x.setAttribute("aria-pressed",String(x===b));});document.querySelectorAll(".page").forEach(p=>p.classList.toggle("hidden",p.id!=="p-"+b.dataset.p));});
 document.querySelectorAll(".filters input,.filters select").forEach(el=>el.addEventListener("change",render));
+$("resetFilters").addEventListener("click",()=>{initFilters();render();});
 $("theme").addEventListener("click",()=>{const d=document.documentElement;d.dataset.theme=d.dataset.theme==="dark"?"light":"dark";});$("print").addEventListener("click",()=>window.print());
 if(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.dataset.theme="dark";
 $("load").addEventListener("click",()=>$("file").click());
@@ -224,18 +245,20 @@ $("csv").addEventListener("click",()=>{const cols=["monat","produktId","_fam","_
  const a=document.createElement("a"),url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.href=url;a.download="copilot-kosten-"+cur()+".csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 /* Ein Import wird erst nach vollständiger Prüfung aller ausgewählten Dateien übernommen. */
-$("file").addEventListener("change",async e=>{const files=[...e.target.files];if(!files.length)return;$("load").disabled=true;
- try{const next=DEMO?{cat:{waehrungStandard:"EUR",produkte:[]},facts:[],budget:Object.create(null),cap:null,haveFacts:false,haveCatalog:false}:{cat:CAT,facts:FACTS,budget:BUDGET,cap:CAP,haveFacts,haveCatalog},seen=new Set();
+$("file").addEventListener("change",async e=>{const files=[...e.target.files];if(!files.length)return;$("load").disabled=true;$("importError").hidden=true;
+ const preserveFilters=!DEMO;
+ try{const next=DEMO?{cat:{waehrungStandard:"EUR",produkte:[]},facts:[],budget:Object.create(null),cap:null,haveFacts:false,haveCatalog:false,haveBudget:false,haveCapacity:false}:{cat:CAT,facts:FACTS,budget:BUDGET,cap:CAP,haveFacts,haveCatalog,haveBudget,haveCapacity},seen=new Set();
   for(const f of files){if(f.size>25*1024*1024)throw Error(f.name+": maximal 25 MB pro Datei.");let j;try{j=JSON.parse((await f.text()).replace(/^\uFEFF/,""));}catch(err){throw Error(f.name+": Ungültiges JSON ("+err.message+").");}
    let type;if(Array.isArray(j))type="facts";else if(record(j)&&own(j,"produkte"))type="catalog";else if(record(j)&&(own(j,"packs")||own(j,"produktId")))type="capacity";else type="budget";
    if(seen.has(type))throw Error("Je Import nur eine Datei pro Typ ("+type+").");seen.add(type);
-   if(type==="facts"){next.facts=validateFacts(j);next.haveFacts=true;}else if(type==="catalog"){next.cat=validateCatalog(j);next.haveCatalog=true;}else if(type==="capacity")next.cap=validateCapacity(j);else next.budget=validateBudget(j);
+   if(type==="facts"){next.facts=validateFacts(j);next.haveFacts=true;}else if(type==="catalog"){next.cat=validateCatalog(j);next.haveCatalog=true;}else if(type==="capacity"){next.cap=validateCapacity(j);next.haveCapacity=true;}else{next.budget=validateBudget(j);next.haveBudget=true;}
   }
   const prepared=prepare(next.cat,next.facts,false),capacityProduct=prepared.index.get(idKey(next.cap?.produktId));
   if(finite(capacityProduct?.kapazitaetJeEinheit)&&!Number.isSafeInteger(capacityProduct.kapazitaetJeEinheit*next.cap.packs))throw Error("Kapazität: berechnete Credits müssen im sicheren Ganzzahlbereich liegen.");
-  CAT=next.cat;FACTS=prepared.rows;productIndex=prepared.index;BUDGET=next.budget;CAP=next.cap;haveFacts=next.haveFacts;haveCatalog=next.haveCatalog;DEMO=false;importMessage=files.length+" Datei(en) erfolgreich geladen; Beispieldaten wurden ersetzt.";initFilters();render();
- }catch(err){alert("Import abgebrochen; bisherige Daten bleiben erhalten. "+err.message);}finally{e.target.value="";$("load").disabled=false;}
+  CAT=next.cat;FACTS=prepared.rows;productIndex=prepared.index;BUDGET=next.budget;CAP=next.cap;haveFacts=next.haveFacts;haveCatalog=next.haveCatalog;haveBudget=next.haveBudget;haveCapacity=next.haveCapacity;DEMO=false;importMessage=files.length+" Datei(en) erfolgreich geladen.";initFilters(preserveFilters&&!seen.has("facts"));$("importHelp").open=!haveFacts||!haveCatalog;render();
+ }catch(err){$("importError").textContent="Import abgebrochen; bisherige Daten und Filter bleiben erhalten. "+err.message;$("importError").hidden=false;}finally{e.target.value="";$("load").disabled=false;}
 });
 enrich();initFilters();render();
 })();
 </script></body></html>
+
