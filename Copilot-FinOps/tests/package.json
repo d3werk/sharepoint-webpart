@@ -1,0 +1,8 @@
+{
+  "name": "copilot-finops-validation",
+  "private": true,
+  "version": "1.2.0",
+  "engines": { "node": ">=22" },
+  "scripts": { "test:syntax": "node check-syntax.cjs" },
+  "devDependencies": { "@microsoft/powerquery-parser": "5.0.0" }
+}

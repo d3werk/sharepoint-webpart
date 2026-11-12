@@ -1,0 +1,13 @@
+// Berechnete Tabelle DimDatum (Spalte Datum als Datumstabelle markieren).
+// Auch ein leerer gültiger Export ergibt einen nutzbaren Kalender im aktuellen Jahr.
+DimDatum =
+VAR erstes = COALESCE ( MIN ( FactKosten[Datum] ), TODAY () )
+VAR letztes = COALESCE ( MAX ( FactKosten[Datum] ), erstes )
+RETURN
+ADDCOLUMNS (
+    CALENDAR ( DATE ( YEAR ( erstes ), 1, 1 ), DATE ( YEAR ( letztes ), 12, 31 ) ),
+    "Jahr", YEAR ( [Date] ),
+    "Monat", FORMAT ( [Date], "yyyy-MM" ),
+    "Monatsname", FORMAT ( [Date], "MMM yyyy" ),
+    "Datum", [Date]
+)

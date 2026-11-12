@@ -1,0 +1,10 @@
+2026-11-12 10:50:03Z [INFO] Start – Konfiguration: C:\Users\Christian.Draeger\Downloads\sharepoint-webpart-main\sharepoint-webpart-main\Copilot-FinOps\03_Collector\..\02_Konfiguration\config.json
+2026-11-12 10:50:03Z [INFO] Lizenzkatalog: 9 aktive Produkte
+2026-11-12 10:50:10Z [ERROR] Tenant-Anmeldung fehlgeschlagen: A parameter cannot be found that matches parameter name 'AllowNoSubscriptions'.
+2026-11-12 10:50:10Z [ERROR] Graph fehlgeschlagen: A parameter cannot be found that matches parameter name 'AllowNoSubscriptions'.
+2026-11-12 10:50:10Z [ERROR] Ergebnisdateien unverändert: Mindestens eine aktivierte Quelle ist fehlgeschlagen.
+2026-11-12 10:50:23Z [INFO] Start – Konfiguration: C:\Users\Christian.Draeger\Downloads\sharepoint-webpart-main\sharepoint-webpart-main\Copilot-FinOps\03_Collector\..\02_Konfiguration\config.json
+2026-11-12 10:50:23Z [INFO] Lizenzkatalog: 9 aktive Produkte
+2026-11-12 10:50:24Z [ERROR] Tenant-Anmeldung fehlgeschlagen: A parameter cannot be found that matches parameter name 'AllowNoSubscriptions'.
+2026-11-12 10:50:24Z [ERROR] Graph fehlgeschlagen: A parameter cannot be found that matches parameter name 'AllowNoSubscriptions'.
+2026-11-12 10:50:24Z [ERROR] Ergebnisdateien unverändert: Mindestens eine aktivierte Quelle ist fehlgeschlagen.

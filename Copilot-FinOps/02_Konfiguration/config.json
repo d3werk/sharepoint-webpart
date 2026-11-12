@@ -1,0 +1,48 @@
+{
+  "ProduktIds": {
+    "PremiumLizenz": "M365-COPILOT",
+    "ChatBasis": "M365-COPILOT-CHAT",
+    "GitHubSeats": "GH-COPILOT-BUS"
+  },
+  "AzureExportColumnMap": {
+    "Date": "Date",
+    "MeterCategory": "MeterCategory",
+    "MeterName": "MeterName",
+    "ServiceName": "ConsumedService",
+    "Location": "ResourceLocation",
+    "Tags": "Tags",
+    "Cost": "CostInBillingCurrency",
+    "Quantity": "Quantity",
+    "Currency": "BillingCurrencyCode"
+  },
+  "TenantId": "d2bcb061-ec2d-4a9f-96ee-65ba4bcff0ff",
+  "ClientId": "6a575bde-711b-4769-a856-031ce9adee31",
+  "CertificateThumbprint": "512D2721DCF12C4BCCD804EBCCABD650D1BC0792",
+  "OutputPath": "..\\06_Daten\\out",
+  "CatalogPath": "lizenzkatalog.json",
+  "DepartmentAttribute": "department",
+  "MinGroupSize": 5,
+  "InactiveDays": 30,
+  "MonthsBack": 12,
+  "EnabledSources": [
+    "Graph"
+  ],
+  "AzureMode": "Export",
+  "AzureExportFolder": "..\\06_Daten\\import\\azure-export",
+  "AzureScopes": [],
+  "CostCenterTag": "",
+  "CostApiVersion": "2023-11-01",
+  "PpacImportFolder": "..\\06_Daten\\import\\ppac",
+  "PpacProduktId": "CS-CAPACITY",
+  "PpacColumnMap": {
+    "Date": "",
+    "Environment": "",
+    "Agent": "",
+    "Credits": ""
+  },
+  "EnvironmentToDepartment": {},
+  "CsvDelimiter": ";",
+  "GitHubOrg": "",
+  "GitHubApiVersion": "2022-11-28",
+  "GitHubDefaultDepartment": "IT"
+}

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Copilot-FinOps – Konfiguration</title>
+<style>
+:root{--bg:#f5f7fa;--card:#fff;--tx:#1f2937;--mu:#6b7280;--bd:#d1d5db;--ac:#2563eb;--ok:#15803d;--wa:#b45309;--er:#b91c1c;--in:#f9fafb}
+@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#1e293b;--tx:#e2e8f0;--mu:#94a3b8;--bd:#475569;--ac:#60a5fa;--ok:#4ade80;--wa:#fbbf24;--er:#f87171;--in:#0f172a}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:16px 24px;background:var(--card);border-bottom:1px solid var(--bd);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+h1{font-size:18px;margin:0}h2{font-size:15px;margin:0 0 4px}.sub{color:var(--mu);font-size:12px;margin:0 0 12px}
+.wrap{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;padding:18px 24px;max-width:1400px;margin:auto}
+.wrap>div{min-width:0}
+@media(max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:16px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+label{display:block;font-weight:600;font-size:13px}
+input[type=text],input[type=number],select,textarea{width:100%;margin-top:4px;padding:7px 9px;border:1px solid var(--bd);border-radius:6px;background:var(--in);color:var(--tx);font:inherit}
+textarea{min-height:60px;font-family:Consolas,monospace;font-size:12px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+.hint{font-weight:400;color:var(--mu);font-size:12px;margin-top:3px}
+.bad{border-color:var(--er)!important}.msg{font-weight:400;font-size:12px;color:var(--er)}
+.chk{display:flex;gap:16px;flex-wrap:wrap}.chk label{font-weight:400;display:flex;gap:6px;align-items:center}
+button,.btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 14px;border-radius:6px;cursor:pointer;font:inherit}
+.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+table{width:100%;border-collapse:collapse;table-layout:fixed}td{padding:3px 4px}td:last-child{width:42px}td input{margin:0!important;min-width:0}
+pre{background:var(--in);border:1px solid var(--bd);border-radius:6px;padding:10px;font-size:12px;overflow:auto;max-height:520px;white-space:pre}
+#status{padding-left:18px}#status li{margin:2px 0}.e{color:var(--er)}.w{color:var(--wa)}.o{color:var(--ok)}
+.sec-off{opacity:.55}
+</style></head><body>
+<header><h1>Copilot-FinOps – Konfiguration</h1>
+<div><button type="button" id="loadButton">Vorhandene config.json laden</button><input type="file" id="load" accept=".json" hidden>
+<button type="button" id="dl" class="pri">config.json speichern</button></div></header>
+<form class="wrap" id="f" onsubmit="return false">
+<div>
+<section class="card"><h2>1. Anmeldung (App-Registrierung)</h2><p class="sub">Werte aus dem Entra Admin Center → App-Registrierungen → deine App → Übersicht.</p>
+<div class="row">
+<label>Mandanten-ID (TenantId)<input type="text" id="TenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><div class="hint">Entra ID → Übersicht → Mandanten-ID</div><div class="msg"></div></label>
+<label>Anwendungs-ID (ClientId)<input type="text" id="ClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><div class="hint">App-Registrierung → Anwendungs-ID (Client)</div><div class="msg"></div></label>
+<label>Zertifikat-Fingerabdruck<input type="text" id="CertificateThumbprint" placeholder="40 Zeichen, 0-9 und A-F"><div class="hint">Ausgabe von 03_Collector\New-AppZertifikat.ps1 oder App → Zertifikate</div><div class="msg"></div></label>
+</div></section>
+
+<section class="card"><h2>2. Ablage</h2><p class="sub">Relative Pfade gelten ab dem Ordner <b>02_Konfiguration</b>. Die Standardwerte passen zur Ordnerstruktur des Pakets.</p>
+<div class="row">
+<label>Ausgabeordner<input type="text" id="OutputPath" value="..\06_Daten\out"><div class="msg"></div></label>
+<label>Lizenzkatalog<input type="text" id="CatalogPath" value="lizenzkatalog.json"><div class="msg"></div></label>
+<label>CSV-Trennzeichen<select id="CsvDelimiter"><option value=";">Semikolon ( ; ) – Excel Deutsch</option><option value=",">Komma ( , )</option></select></label>
+</div></section>
+
+<section class="card"><h2>3. Auswertung &amp; Datenschutz</h2>
+<div class="row">
+<label>Feld für Fachbereich<select id="DepartmentAttribute"><option>department</option><option>companyName</option><option>officeLocation</option></select><div class="hint">Entra-Benutzerfeld, in dem eure Fachbereiche gepflegt sind</div></label>
+<label>„Inaktiv“ nach (Tagen)<input type="number" id="InactiveDays" min="7" max="180" value="30"><div class="hint">7–180</div></label>
+<label>Rückblick (Monate)<input type="number" id="MonthsBack" min="1" max="36" value="12"><div class="hint">1–36</div></label>
+<label>Mindestgruppengröße<input type="number" id="MinGroupSize" min="1" max="50" value="5"><div class="hint">Kleinere Gruppen werden zu „Sonstige“ (Betriebsrat/DSGVO)</div></label>
+</div></section>
+
+<section class="card"><h2>4. Datenquellen</h2><p class="sub">Für den ersten Test nur „Graph“ aktivieren.</p>
+<div class="chk"><label><input type="checkbox" class="src" value="Graph" checked> Microsoft Graph (Lizenzen, Nutzung)</label>
+<label><input type="checkbox" class="src" value="Azure"> Azure Cost Management</label>
+<label><input type="checkbox" class="src" value="PPAC"> Copilot Studio (CSV aus PPAC)</label>
+<label><input type="checkbox" class="src" value="GitHub"> GitHub Copilot</label></div><div class="msg" id="srcMsg"></div></section>
+
+<section class="card" data-src="Azure"><h2>4a. Azure Cost Management</h2>
+<div class="row">
+<label>Verfahren<select id="AzureMode"><option value="Export">Export-Dateien (empfohlen)</option><option value="Query">Query API (direkt)</option></select><div class="hint">Export: täglicher Cost-Management-Export als CSV</div></label>
+<label>Tag-Name für Kostenstelle<input type="text" id="CostCenterTag" placeholder="z. B. Kostenstelle"><div class="msg"></div></label>
+</div>
+<div class="row" id="azExport" style="margin-top:10px">
+<label>Exportordner<input type="text" id="AzureExportFolder" value="..\06_Daten\import\azure-export"><div class="msg"></div></label></div>
+<div class="row" id="azQuery" style="margin-top:10px">
+<label>Abonnement-IDs (eine pro Zeile)<textarea id="AzureSubs" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></textarea><div class="hint">Wird automatisch zu /subscriptions/&lt;ID&gt;</div><div class="msg"></div></label>
+<label>API-Version<input type="text" id="CostApiVersion" value="2023-11-01"><div class="hint">Nur Datum, ohne Zusätze [aktuell prüfen]</div><div class="msg"></div></label></div>
+</section>
+
+<section class="card" data-src="PPAC"><h2>4b. Copilot Studio – CSV-Import</h2>
+<div class="row">
+<label>Importordner<input type="text" id="PpacImportFolder" value="..\06_Daten\import\ppac"><div class="msg"></div></label>
+<label>Produkt-ID im Lizenzkatalog<input type="text" id="PpacProduktId" value="CS-CAPACITY"><div class="msg"></div></label></div>
+<p class="sub" style="margin-top:10px">Spaltennamen genau so eintragen, wie sie in der Kopfzeile der exportierten CSV stehen:</p>
+<div class="row">
+<label>Spalte Datum<input type="text" id="colDate" value="Date"></label><label>Spalte Umgebung<input type="text" id="colEnv" value="Environment"></label>
+<label>Spalte Agent<input type="text" id="colAgent" value="Agent"></label><label>Spalte Credits<input type="text" id="colCred" value="Credits"></label></div>
+<p class="sub" style="margin-top:12px">Zuordnung Umgebung → Fachbereich</p>
+<table id="envT"><tbody></tbody></table><button type="button" id="addEnv" style="margin-top:6px">+ Zeile</button>
+</section>
+
+<section class="card" data-src="GitHub"><h2>4c. GitHub Copilot</h2>
+<div class="row">
+<label>Organisation<input type="text" id="GitHubOrg" placeholder="z. B. contoso"><div class="msg"></div></label>
+<label>Standard-Fachbereich<input type="text" id="GitHubDefaultDepartment" value="IT"></label>
+<label>API-Version<input type="text" id="GitHubApiVersion" value="2022-11-28"></label></div>
+<div class="hint">Token nicht hier eintragen, sondern als Umgebungsvariable <b>FINOPS_GITHUB_TOKEN</b> auf dem Server.</div>
+</section>
+</div>
+
+<div><section class="card" style="position:sticky;top:12px"><h2>Prüfung</h2><ul id="status" aria-live="polite"></ul>
+<h2 style="margin-top:14px">Vorschau config.json</h2><pre id="prev"></pre>
+<p class="hint">Speichern als <b>02_Konfiguration\config.json</b> (vorhandene Datei ersetzen).</p></section></div>
+</form>
+<script>
+"use strict";
+(()=>{const $=id=>document.getElementById(id),f=$("f");
+const GUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,THUMB=/^[0-9a-f]{40}$/i,PH=/[<>]|\[prüfen\]/i;
+let EXTRA={}; /* Unbekannte Felder aus geladener Datei (z. B. ProduktIds, AzureExportColumnMap) bleiben erhalten */
+const DEFAULT_EXTRA={ProduktIds:{PremiumLizenz:"M365-COPILOT",ChatBasis:"M365-COPILOT-CHAT",GitHubSeats:"GH-COPILOT-BUS"},
+ AzureExportColumnMap:{Date:"Date",MeterCategory:"MeterCategory",MeterName:"MeterName",ServiceName:"ConsumedService",Location:"ResourceLocation",Tags:"Tags",Cost:"CostInBillingCurrency",Quantity:"Quantity",Currency:"BillingCurrencyCode"}};
+function envRow(k="",v=""){const tr=document.createElement("tr");tr.innerHTML='<td><input type="text" placeholder="Umgebungsname" aria-label="Umgebung"></td><td><input type="text" placeholder="Fachbereich" aria-label="Fachbereich"></td><td><button type="button" aria-label="Zeile löschen">✕</button></td>';
+ const i=tr.querySelectorAll("input");i[0].value=k;i[1].value=v;tr.querySelector("button").addEventListener("click",()=>{tr.remove();update();});$("envT").tBodies[0].appendChild(tr);}
+const val=id=>$(id).value.trim();
+const integer=id=>$(id).value===""?null:$(id).valueAsNumber;
+const apiDate=(v,preview=false)=>{const m=/^(\d{4}-\d{2}-\d{2})(-preview)?$/.exec(v);if(!m||(!preview&&m[2]))return false;const d=new Date(m[1]+"T00:00:00Z");return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===m[1];};
+const sources=()=>[...document.querySelectorAll(".src:checked")].map(c=>c.value);
+function build(){const env=Object.create(null);[...$("envT").tBodies[0].rows].forEach(r=>{const[a,b]=[...r.querySelectorAll("input")].map(i=>i.value.trim());if(a)env[a]=b||"Nicht zugeordnet";});
+ return{...DEFAULT_EXTRA,...EXTRA,
+ TenantId:val("TenantId"),ClientId:val("ClientId"),CertificateThumbprint:val("CertificateThumbprint").replace(/[\s\u200e\u200f:]/g,"").toUpperCase(),
+ OutputPath:val("OutputPath"),CatalogPath:val("CatalogPath"),DepartmentAttribute:$("DepartmentAttribute").value,
+ MinGroupSize:integer("MinGroupSize"),InactiveDays:integer("InactiveDays"),MonthsBack:integer("MonthsBack"),EnabledSources:sources(),
+ AzureMode:$("AzureMode").value,AzureExportFolder:val("AzureExportFolder"),
+ AzureScopes:$("AzureSubs").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(s=>s.startsWith("/")?s:"/subscriptions/"+s),
+ CostCenterTag:val("CostCenterTag"),CostApiVersion:val("CostApiVersion"),PpacImportFolder:val("PpacImportFolder"),PpacProduktId:val("PpacProduktId"),
+ PpacColumnMap:{Date:val("colDate"),Environment:val("colEnv"),Agent:val("colAgent"),Credits:val("colCred")},EnvironmentToDepartment:env,
+ CsvDelimiter:$("CsvDelimiter").value,GitHubOrg:val("GitHubOrg"),GitHubApiVersion:val("GitHubApiVersion"),GitHubDefaultDepartment:val("GitHubDefaultDepartment")||"IT"};}
+function setErr(id,m){const el=$(id);if(!el)return;el.classList.toggle("bad",!!m);el.setAttribute("aria-invalid",String(!!m));
+ const label=el.closest("label");let box=label?.querySelector(".msg");if(label&&!box){box=document.createElement("div");box.className="msg";label.appendChild(box);}if(box){box.id=id+"Error";box.textContent=m||"";el.setAttribute("aria-describedby",box.id);}}
+function validate(c){const E=[],W=[],src=c.EnabledSources;
+ const chk=(id,active,cond,m)=>{const bad=active&&!cond;setErr(id,bad?m:"");if(bad)E.push(m);};
+ const auth=src.includes("Graph")||(src.includes("Azure")&&c.AzureMode==="Query");
+ chk("TenantId",auth,GUID.test(c.TenantId),"Mandanten-ID muss eine GUID sein");
+ chk("ClientId",auth,GUID.test(c.ClientId),"Anwendungs-ID muss eine GUID sein");
+ chk("CertificateThumbprint",auth,THUMB.test(c.CertificateThumbprint),"Fingerabdruck: genau 40 Zeichen 0-9/A-F");
+ chk("OutputPath",true,!!c.OutputPath&&!PH.test(c.OutputPath),"Ausgabeordner fehlt");
+ chk("CatalogPath",true,/\.json$/i.test(c.CatalogPath)&&!PH.test(c.CatalogPath),"Lizenzkatalog-Pfad muss auf .json enden");
+ for(const [id,min,max] of [["MinGroupSize",1,50],["InactiveDays",7,180],["MonthsBack",1,36]])chk(id,true,Number.isInteger(c[id])&&c[id]>=min&&c[id]<=max,`${id}: ganze Zahl von ${min} bis ${max} erforderlich`);
+ chk("DepartmentAttribute",src.includes("Graph"),/^[A-Za-z][A-Za-z0-9_]{0,127}$/.test(c.DepartmentAttribute),"Fachbereichsfeld ist ungültig");
+ $("srcMsg").textContent=src.length?"":"Mindestens eine Datenquelle wählen";if(!src.length)E.push("Keine Datenquelle aktiv");
+ const az=src.includes("Azure"),q=c.AzureMode==="Query";
+ chk("CostCenterTag",az,!!c.CostCenterTag&&!PH.test(c.CostCenterTag),"Azure: Tag-Name für Kostenstelle fehlt");
+ chk("AzureExportFolder",az&&!q,!!c.AzureExportFolder&&!PH.test(c.AzureExportFolder),"Azure: Exportordner fehlt");
+ chk("AzureSubs",az&&q,c.AzureScopes.length>0&&c.AzureScopes.every(s=>/^\/subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)),"Azure: gültige Abonnement-ID(s) eintragen");
+ chk("CostApiVersion",az&&q,apiDate(c.CostApiVersion,true),"Azure: API-Version im Format JJJJ-MM-TT");
+ if(az&&q&&new Set(c.AzureScopes.map(s=>s.toLowerCase())).size!==c.AzureScopes.length)E.push("Azure: Abonnements dürfen nicht doppelt vorkommen");
+ const pp=src.includes("PPAC");
+ chk("PpacImportFolder",pp,!!c.PpacImportFolder&&!PH.test(c.PpacImportFolder),"PPAC: Importordner fehlt");
+ chk("PpacProduktId",pp,!!c.PpacProduktId&&!PH.test(c.PpacProduktId),"PPAC: Produkt-ID fehlt");
+ [["colDate","Date"],["colEnv","Environment"],["colAgent","Agent"],["colCred","Credits"]].forEach(([id,k])=>chk(id,pp,!!c.PpacColumnMap[k]&&!PH.test(c.PpacColumnMap[k]),"PPAC: alle vier Spaltennamen ausfüllen"));
+ const seen=new Set();let duplicate=false,incomplete=false;[...$("envT").tBodies[0].rows].forEach(r=>{const[a,b]=[...r.querySelectorAll("input")].map(i=>i.value.trim());if(a&&seen.has(a.toLowerCase()))duplicate=true;if(a)seen.add(a.toLowerCase());if((a&&!b)||(!a&&b))incomplete=true;});
+ if(pp&&duplicate)E.push("PPAC: Umgebungsnamen dürfen nicht doppelt vorkommen");if(pp&&incomplete)E.push("PPAC: Umgebung und Fachbereich je Zeile vollständig eintragen");
+ if(pp&&!Object.keys(c.EnvironmentToDepartment).length)W.push("PPAC: keine Umgebungszuordnung – alles landet unter „Nicht zugeordnet“");
+ chk("GitHubOrg",src.includes("GitHub"),/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(c.GitHubOrg),"GitHub: Organisationsname fehlt/ungültig");
+ chk("GitHubApiVersion",src.includes("GitHub"),apiDate(c.GitHubApiVersion),"GitHub: API-Version im Format JJJJ-MM-TT");
+ if(src.includes("GitHub"))W.push("GitHub: Umgebungsvariable FINOPS_GITHUB_TOKEN auf dem Server setzen");
+ if(az&&q)W.push("Azure Query: Rolle „Cost Management Reader“ für die App auf jedem Abonnement nötig");
+ if(az&&!q)W.push("Azure Export: Export im Azure-Portal einrichten und CSV-Dateien in den Exportordner kopieren");
+ if(c.MinGroupSize<5)W.push("Mindestgruppengröße unter 5 – mit Betriebsrat/DSB abstimmen");
+ return{E,W};}
+function update(){const s=sources();document.querySelectorAll("[data-src]").forEach(x=>x.classList.toggle("sec-off",!s.includes(x.dataset.src)));
+ const q=$("AzureMode").value==="Query";$("azQuery").style.display=q?"":"none";$("azExport").style.display=q?"none":"";
+ const c=build(),{E,W}=validate(c);$("prev").textContent=JSON.stringify(c,null,2);
+ $("status").innerHTML=(E.map(m=>`<li class="e">✖ ${m}</li>`).join("")+W.map(m=>`<li class="w">⚠ ${m}</li>`).join(""))||'<li class="o">✔ Konfiguration vollständig</li>';
+ if(!E.length&&W.length)$("status").insertAdjacentHTML("afterbegin",'<li class="o">✔ Pflichtangaben vollständig</li>');return E;}
+const KNOWN=["TenantId","ClientId","CertificateThumbprint","OutputPath","CatalogPath","DepartmentAttribute","MinGroupSize","InactiveDays","MonthsBack","EnabledSources","AzureMode","AzureExportFolder","AzureScopes","CostCenterTag","CostApiVersion","PpacImportFolder","PpacProduktId","PpacColumnMap","EnvironmentToDepartment","CsvDelimiter","GitHubOrg","GitHubApiVersion","GitHubDefaultDepartment","Pseudonymize"];
+function checkImport(c){
+ if(!c||typeof c!=="object"||Array.isArray(c))throw new Error("kein JSON-Objekt");
+ const object=v=>v!==null&&typeof v==="object"&&!Array.isArray(v);
+ const strings=["TenantId","ClientId","CertificateThumbprint","OutputPath","CatalogPath","DepartmentAttribute","AzureMode","AzureExportFolder","CostCenterTag","CostApiVersion","PpacImportFolder","PpacProduktId","CsvDelimiter","GitHubOrg","GitHubApiVersion","GitHubDefaultDepartment"];
+ for(const k of strings)if(k in c&&typeof c[k]!=="string")throw new Error(k+" muss Text sein");
+ for(const k of ["InactiveDays","MonthsBack","MinGroupSize"])if(k in c&&(!Number.isFinite(c[k])||!Number.isInteger(c[k])))throw new Error(k+" muss eine endliche ganze Zahl sein");
+ for(const k of ["EnabledSources","AzureScopes"])if(k in c&&(!Array.isArray(c[k])||c[k].some(v=>typeof v!=="string")))throw new Error(k+" muss eine Liste von Textwerten sein");
+ if(c.EnabledSources&&(new Set(c.EnabledSources).size!==c.EnabledSources.length||c.EnabledSources.some(v=>!["Graph","Azure","PPAC","GitHub"].includes(v))))throw new Error("EnabledSources enthält unbekannte oder doppelte Quellen");
+ for(const k of ["EnvironmentToDepartment","PpacColumnMap","ProduktIds","AzureExportColumnMap"])if(k in c&&(!object(c[k])||Object.values(c[k]).some(v=>typeof v!=="string")))throw new Error(k+" muss ein Objekt mit Textwerten sein");
+ if(c.AzureMode&&!['Export','Query'].includes(c.AzureMode))throw new Error("AzureMode muss Export oder Query sein");
+ if(c.CsvDelimiter&&![';',','].includes(c.CsvDelimiter))throw new Error("CsvDelimiter muss Semikolon oder Komma sein");
+ if(c.DepartmentAttribute&&!/^[A-Za-z][A-Za-z0-9_]{0,127}$/.test(c.DepartmentAttribute))throw new Error("DepartmentAttribute ist ungültig");
+ // JSON.parse akzeptiert 1e309; ein späterer Export würde daraus stillschweigend null machen.
+ function finite(v){if(typeof v==="number"&&!Number.isFinite(v))throw new Error("Nicht endlicher Zahlenwert");if(v&&typeof v==="object")Object.values(v).forEach(finite);}finite(c);
+}
+function apply(c){
+ checkImport(c); // Vor der ersten Änderung am Formular alle Datentypen prüfen.
+ const clean=v=>typeof v==="string"&&PH.test(v)?"":v;
+ f.reset();EXTRA=Object.create(null);Object.keys(c).forEach(k=>{if(!KNOWN.includes(k))EXTRA[k]=c[k];});
+ ["TenantId","ClientId","CertificateThumbprint","OutputPath","CatalogPath","CostCenterTag","AzureExportFolder","PpacImportFolder","PpacProduktId","GitHubOrg","GitHubApiVersion","GitHubDefaultDepartment","InactiveDays","MonthsBack","MinGroupSize"].forEach(k=>{if(c[k]!=null&&$(k))$(k).value=clean(c[k]);});
+ if(c.CostApiVersion)$("CostApiVersion").value=String(c.CostApiVersion).replace(/\s*\[prüfen\]/i,"");
+ if(c.DepartmentAttribute){const s=$("DepartmentAttribute");if(![...s.options].some(o=>o.value===c.DepartmentAttribute))s.add(new Option(c.DepartmentAttribute));s.value=c.DepartmentAttribute;}
+ if(c.CsvDelimiter)$("CsvDelimiter").value=c.CsvDelimiter;if(c.AzureMode)$("AzureMode").value=c.AzureMode;
+ document.querySelectorAll(".src").forEach(x=>x.checked=(c.EnabledSources||[]).includes(x.value));
+ $("AzureSubs").value=(c.AzureScopes||[]).filter(s=>!PH.test(s)).join("\n");
+ const m=c.PpacColumnMap||{};[["colDate","Date"],["colEnv","Environment"],["colAgent","Agent"],["colCred","Credits"]].forEach(([id,k])=>{$(id).value=m[k]&&!PH.test(m[k])?m[k]:"";});
+ $("envT").tBodies[0].replaceChildren();Object.entries(c.EnvironmentToDepartment||{}).filter(([k])=>!PH.test(k)).forEach(([k,v])=>envRow(k,PH.test(v)?"":v));
+ if(!$("envT").tBodies[0].rows.length)envRow();}
+f.addEventListener("input",update);f.addEventListener("change",update);
+$("addEnv").addEventListener("click",()=>{envRow();update();});
+$("loadButton").addEventListener("click",()=>$("load").click());
+$("load").addEventListener("change",async e=>{const file=e.target.files[0];if(!file)return;
+ try{const c=JSON.parse((await file.text()).replace(/^\uFEFF/,""));apply(c);update();}
+ catch(err){alert("Datei konnte nicht gelesen werden: "+err.message);}e.target.value="";});
+$("dl").addEventListener("click",()=>{const E=update();if(E.length){document.querySelector(".bad")?.focus();return;}
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(build(),null,2)],{type:"application/json"}));a.download="config.json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
+envRow();update();})();
+</script></body></html>

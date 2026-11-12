@@ -1,0 +1,146 @@
+// =====================================================================
+// Copilot-FinOps – jede Definition separat als Spalte bzw. Measure anlegen.
+// Tabellen: FactKosten, DimProdukt, DimDatum, DimFachbereich, Budget, RLS_Mapping
+// Keine Währungsumrechnung: Geld-Measures bleiben bei gemischten Währungen leer.
+// Währungsslicer: FactKosten[Währung]; Budget gilt nur in waehrungStandard.
+// =====================================================================
+
+// ---------- Berechnete Spalten in FactKosten ----------
+Währung =
+COALESCE ( FactKosten[waehrung], RELATED ( DimProdukt[waehrung] ), "Unbekannt" )
+
+// Monatsstände gelten am Monatsersten; Jahrespreise pro User werden auf Monate verteilt.
+Preis =
+VAR d = FactKosten[Datum]
+VAR ab = RELATED ( DimProdukt[gueltigAb] )
+VAR bis = RELATED ( DimProdukt[gueltigBis] )
+VAR gueltig = ( ISBLANK ( ab ) || d >= ab ) && ( ISBLANK ( bis ) || d <= bis )
+VAR gleicheWaehrung = FactKosten[Währung] = RELATED ( DimProdukt[waehrung] )
+VAR roh = COALESCE ( RELATED ( DimProdukt[kundenpreis] ), RELATED ( DimProdukt[listenpreis] ) )
+VAR teiler = IF ( RELATED ( DimProdukt[preisbasis] ) = "Jahr" && RELATED ( DimProdukt[abrechnungsart] ) = "ProUser", 12, 1 )
+RETURN IF ( gueltig && gleicheWaehrung, DIVIDE ( roh, teiler ) )
+
+// kostenIst (auch 0 oder Gutschriften) hat Vorrang vor Menge × Preis.
+Kosten =
+IF ( NOT ISBLANK ( FactKosten[kostenIst] ), FactKosten[kostenIst], FactKosten[menge] * COALESCE ( FactKosten[Preis], 0 ) )
+
+PreisFehlt =
+ISBLANK ( FactKosten[kostenIst] ) && ISBLANK ( FactKosten[Preis] ) && RELATED ( DimProdukt[abrechnungsart] ) <> "Kostenfrei"
+
+// ---------- Measures ----------
+Währungen im Kontext = DISTINCTCOUNT ( FactKosten[Währung] )
+
+Berichtswährung = SELECTEDVALUE ( FactKosten[Währung] )
+
+Kosten Gesamt =
+IF ( [Währungen im Kontext] = 1 && [Berichtswährung] <> "Unbekannt", SUM ( FactKosten[Kosten] ) )
+
+Kosten YTD = TOTALYTD ( [Kosten Gesamt], DimDatum[Datum] )
+
+Kosten Vormonat = CALCULATE ( [Kosten Gesamt], DATEADD ( DimDatum[Datum], -1, MONTH ) )
+
+Trend % =
+VAR jetzt = [Berichtswährung]
+VAR vorher = CALCULATE ( [Berichtswährung], DATEADD ( DimDatum[Datum], -1, MONTH ) )
+RETURN IF ( NOT ISBLANK ( jetzt ) && jetzt <> "Unbekannt" && jetzt = vorher,
+    DIVIDE ( [Kosten Gesamt] - [Kosten Vormonat], [Kosten Vormonat] ) )
+
+// Letzter tatsächlicher Monat innerhalb der gewählten Filter (keine künftigen Kalendermonate).
+Letzter Ist-Monat = MAX ( FactKosten[Datum] )
+
+Ø Monat letzte 3 =
+VAR ende = [Letzter Ist-Monat]
+VAR anfang = MAX ( DATE ( YEAR ( ende ), 1, 1 ), EDATE ( ende, -2 ) )
+VAR monate = CALCULATETABLE (
+    VALUES ( FactKosten[Datum] ), REMOVEFILTERS ( DimDatum ),
+    FILTER ( ALL ( FactKosten[Datum] ), FactKosten[Datum] >= anfang && FactKosten[Datum] <= ende ) )
+VAR waehrungen = CALCULATE ( [Währungen im Kontext], REMOVEFILTERS ( DimDatum ),
+    FILTER ( ALL ( FactKosten[Datum] ), FactKosten[Datum] >= anfang && FactKosten[Datum] <= ende ) )
+RETURN IF ( NOT ISBLANK ( ende ) && waehrungen = 1,
+    AVERAGEX ( monate, CALCULATE ( [Kosten Gesamt], REMOVEFILTERS ( DimDatum ) ) ) )
+
+// Wie im HTML: linearer Trend der letzten drei Kalendermonate des Ist-Jahres.
+// Mindestens zwei Ist-Monate nötig; Lücken werden anhand der Monatsabstände berücksichtigt.
+Forecast Jahresende =
+VAR ende = [Letzter Ist-Monat]
+VAR anfang = MAX ( DATE ( YEAR ( ende ), 1, 1 ), EDATE ( ende, -2 ) )
+VAR monate = CALCULATETABLE (
+    VALUES ( FactKosten[Datum] ), REMOVEFILTERS ( DimDatum ),
+    FILTER ( ALL ( FactKosten[Datum] ), FactKosten[Datum] >= anfang && FactKosten[Datum] <= ende ) )
+VAR erster = MINX ( monate, FactKosten[Datum] )
+VAR basis = CALCULATE ( [Kosten Gesamt], REMOVEFILTERS ( DimDatum ), FactKosten[Datum] = ende )
+VAR startwert = CALCULATE ( [Kosten Gesamt], REMOVEFILTERS ( DimDatum ), FactKosten[Datum] = erster )
+VAR steigung = DIVIDE ( basis - startwert, DATEDIFF ( erster, ende, MONTH ), 0 )
+VAR istJahr = CALCULATE ( [Kosten Gesamt], REMOVEFILTERS ( DimDatum ),
+    FILTER ( ALL ( FactKosten[Datum] ), FactKosten[Datum] >= DATE ( YEAR ( ende ), 1, 1 ) && FactKosten[Datum] <= ende ) )
+VAR rest = IF ( COUNTROWS ( monate ) >= 2,
+    SUMX ( GENERATESERIES ( 1, 12 - MONTH ( ende ) ), MAX ( 0, basis + steigung * [Value] ) ), 0 )
+RETURN IF ( NOT ISBLANK ( ende ) && [Währungen im Kontext] = 1 && [Berichtswährung] <> "Unbekannt" && NOT ISBLANK ( istJahr ) && ( MONTH ( ende ) = 12 || COUNTROWS ( monate ) >= 2 ), istJahr + rest )
+
+Budget =
+VAR standard = CALCULATE ( SELECTEDVALUE ( DimProdukt[waehrungStandard] ), REMOVEFILTERS ( DimProdukt ) )
+RETURN IF ( [Berichtswährung] = standard, SUM ( Budget[Betrag] ) )
+
+Budget Ausschöpfung = DIVIDE ( [Forecast Jahresende], [Budget] )
+
+Ampel =
+SWITCH ( TRUE (),
+    ISBLANK ( [Budget] ), "⚪",
+    [Budget] = 0 && [Kosten YTD] > 0, "🔴",
+    [Budget] = 0 || ISBLANK ( [Budget Ausschöpfung] ), "⚪",
+    [Budget Ausschöpfung] > 1,   "🔴",
+    [Budget Ausschöpfung] > 0.9, "🟡",
+    "🟢" )
+
+// Measures dürfen in CALCULATE nicht direkt rechts eines Spaltenfilters stehen.
+// Deshalb den letzten Monat vorab in einer skalaren Variablen auswerten.
+Lizenzen zugewiesen =
+VAR ende = [Letzter Ist-Monat]
+RETURN IF ( NOT ISBLANK ( ende ), CALCULATE (
+    SUM ( FactKosten[zugewiesen] ), REMOVEFILTERS ( DimDatum ),
+    FactKosten[Datum] = ende, DimProdukt[abrechnungsart] = "ProUser" ) )
+
+Lizenzen aktiv =
+VAR ende = [Letzter Ist-Monat]
+VAR unbekannt = CALCULATE ( COUNTROWS ( FactKosten ), REMOVEFILTERS ( DimDatum ),
+    FactKosten[Datum] = ende, DimProdukt[abrechnungsart] = "ProUser", FactKosten[zugewiesen] > 0, ISBLANK ( FactKosten[aktiv] ) )
+RETURN IF ( NOT ISBLANK ( ende ) && unbekannt = 0, CALCULATE (
+    SUM ( FactKosten[aktiv] ), REMOVEFILTERS ( DimDatum ),
+    FactKosten[Datum] = ende, DimProdukt[abrechnungsart] = "ProUser", FactKosten[zugewiesen] > 0 ) )
+
+Auslastung = DIVIDE ( [Lizenzen aktiv], [Lizenzen zugewiesen] )
+
+Einsparpotenzial Monat =
+VAR ende = [Letzter Ist-Monat]
+VAR zeilen = CALCULATETABLE ( FactKosten, REMOVEFILTERS ( DimDatum ),
+    FactKosten[Datum] = ende, DimProdukt[abrechnungsart] = "ProUser", FactKosten[zugewiesen] > 0 )
+VAR unbekannt = COUNTROWS ( FILTER ( zeilen, ISBLANK ( FactKosten[aktiv] ) || ISBLANK ( FactKosten[Preis] ) ) )
+RETURN IF ( NOT ISBLANK ( ende ) && [Währungen im Kontext] = 1 && [Berichtswährung] <> "Unbekannt" && unbekannt = 0,
+    SUMX ( zeilen, MAX ( 0, FactKosten[zugewiesen] - FactKosten[aktiv] ) * FactKosten[Preis] ) )
+
+Unlizenzierte Nutzer =
+VAR ende = [Letzter Ist-Monat]
+VAR unbekannt = CALCULATE ( COUNTROWS ( FactKosten ), REMOVEFILTERS ( DimDatum ),
+    FactKosten[Datum] = ende, ISBLANK ( FactKosten[unlizenziert] ), DimProdukt[abrechnungsart] = "Kostenfrei" )
+RETURN IF ( NOT ISBLANK ( ende ) && unbekannt = 0, CALCULATE (
+    SUM ( FactKosten[unlizenziert] ), REMOVEFILTERS ( DimDatum ), FactKosten[Datum] = ende ) )
+
+// Ein Kapazitätsprodukt auswählen: Credits, SCU und andere Einheiten sind nicht addierbar.
+Credits verbraucht =
+IF ( HASONEVALUE ( DimProdukt[produktId] ),
+    CALCULATE ( SUM ( FactKosten[menge] ), DimProdukt[abrechnungsart] = "Kapazitaet" ) )
+
+// What-if-Parameter Packs erzeugt die Spalte Packs[Packs] (nicht Packs[Packs Wert]).
+Credits Kapazität Monat =
+IF ( HASONEVALUE ( DimProdukt[produktId] ) && SELECTEDVALUE ( DimProdukt[abrechnungsart] ) = "Kapazitaet",
+    SELECTEDVALUE ( DimProdukt[kapazitaetJeEinheit] ) * SELECTEDVALUE ( Packs[Packs], 0 ) )
+
+Credits Rest =
+VAR ende = [Letzter Ist-Monat]
+VAR verbrauch = CALCULATE ( [Credits verbraucht], REMOVEFILTERS ( DimDatum ), FactKosten[Datum] = ende )
+RETURN IF ( NOT ISBLANK ( ende ) && NOT ISBLANK ( [Credits Kapazität Monat] ), [Credits Kapazität Monat] - verbrauch )
+
+Produkte ohne Preis = CALCULATE ( DISTINCTCOUNT ( FactKosten[produktId] ), FactKosten[PreisFehlt] = TRUE () )
+
+// ---------- Row-Level Security (Rolle Fachbereichsleitung, Filter auf DimFachbereich) ----------
+// [Fachbereich] IN CALCULATETABLE ( VALUES ( RLS_Mapping[Fachbereich] ), RLS_Mapping[UPN] = USERPRINCIPALNAME () )

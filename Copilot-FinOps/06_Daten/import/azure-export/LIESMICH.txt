@@ -1,0 +1,1 @@
+CSV-Dateien des Azure Cost Management Exports hier ablegen (z. B. per AzCopy synchronisieren).

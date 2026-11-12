@@ -1,0 +1,11 @@
+{
+  "produktId": "CS-CAPACITY",
+  "packs": 4,
+  "kapazitaetJeEinheit": 10000,
+  "kundenpreis": 0.02,
+  "waehrung": "EUR",
+  "preisbasis": "Einheit",
+  "kundenpreis": 36,
+  "waehrung": "EUR",
+  "preisbasis": "Monat"
+}

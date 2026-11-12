@@ -1,0 +1,98 @@
+test_atomic_batch_import_keeps_previous_data_on_parse_failure (test_app.BrowserTests.test_atomic_batch_import_keeps_previous_data_on_parse_failure) ... FAIL
+test_catalog_only_never_displays_demo_facts_as_real (test_app.BrowserTests.test_catalog_only_never_displays_demo_facts_as_real) ... FAIL
+test_own_data_clears_demo_budget_and_capacity (test_app.BrowserTests.test_own_data_clears_demo_budget_and_capacity) ... FAIL
+test_missing_price_actual_cost_zero_and_annual_price (test_app.BrowserTests.test_missing_price_actual_cost_zero_and_annual_price) ... FAIL
+test_unknown_activity_never_becomes_fake_savings (test_app.BrowserTests.test_unknown_activity_never_becomes_fake_savings) ... FAIL
+test_configuration_malformed_import_is_atomic (test_app.BrowserTests.test_configuration_malformed_import_is_atomic) ... FAIL
+test_configuration_offline_source_without_tenant_credentials (test_app.BrowserTests.test_configuration_offline_source_without_tenant_credentials) ... FAIL
+
+======================================================================
+FAIL: test_atomic_batch_import_keeps_previous_data_on_parse_failure (test_app.BrowserTests.test_atomic_batch_import_keeps_previous_data_on_parse_failure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/sharepoint-webpart/Copilot-FinOps/tests/test_app.py", line 143, in test_atomic_batch_import_keeps_previous_data_on_parse_failure
+    self.assertEqual(self.kpis(), before)
+AssertionError: Lists differ: ['0\xa0€', '0\xa0€', '0\xa0€', '106.000\xa0€ ● NaN %', '0'] != ['100\xa0€', '100\xa0€', '100\xa0€', '106.000\xa0€ ● 0 %', '0']
+
+First differing element 0:
+'0\xa0€'
+'100\xa0€'
+
+- ['0\xa0€', '0\xa0€', '0\xa0€', '106.000\xa0€ ● NaN %', '0']
+?                                                ^^^
+
++ ['100\xa0€', '100\xa0€', '100\xa0€', '106.000\xa0€ ● 0 %', '0']
+?   ++          ++          ++                         ^
+
+
+======================================================================
+FAIL: test_catalog_only_never_displays_demo_facts_as_real (test_app.BrowserTests.test_catalog_only_never_displays_demo_facts_as_real)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/sharepoint-webpart/Copilot-FinOps/tests/test_app.py", line 132, in test_catalog_only_never_displays_demo_facts_as_real
+    self.assertEqual(self.page.locator("#fFb option").count(), 1)
+AssertionError: 6 != 1
+
+======================================================================
+FAIL: test_own_data_clears_demo_budget_and_capacity (test_app.BrowserTests.test_own_data_clears_demo_budget_and_capacity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/sharepoint-webpart/Copilot-FinOps/tests/test_app.py", line 125, in test_own_data_clears_demo_budget_and_capacity
+    self.assertNotIn("Vertrieb", self.page.locator("#tbBudget").inner_text())
+AssertionError: 'Vertrieb' unexpectedly found in 'Fachbereich\tBudget\tIst YTD\tAusschöpfung\tStatus\nFinanzen\t12.000\xa0€\t0\xa0€\t0 %\t●\nIT\t40.000\xa0€\t100\xa0€\t0 %\t●\nPersonal\t9.000\xa0€\t0\xa0€\t0 %\t●\nProduktion\t15.000\xa0€\t0\xa0€\t0 %\t●\nVertrieb\t30.000\xa0€\t0\xa0€\t0 %\t●'
+
+======================================================================
+FAIL: test_missing_price_actual_cost_zero_and_annual_price (test_app.BrowserTests.test_missing_price_actual_cost_zero_and_annual_price)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/sharepoint-webpart/Copilot-FinOps/tests/test_app.py", line 169, in test_missing_price_actual_cost_zero_and_annual_price
+    self.assertIn("100", self.kpis()[0])
+AssertionError: '100' not found in '1.200\xa0€'
+
+======================================================================
+FAIL: test_unknown_activity_never_becomes_fake_savings (test_app.BrowserTests.test_unknown_activity_never_becomes_fake_savings)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/sharepoint-webpart/Copilot-FinOps/tests/test_app.py", line 181, in test_unknown_activity_never_becomes_fake_savings
+    self.assertRegex(text.lower(), "unbekannt|nicht verfügbar|keine nutzungsdaten")
+AssertionError: Regex didn't match: 'unbekannt|nicht verfügbar|keine nutzungsdaten' not found in 'produktfachbereichzugewiesenaktivauslastunginaktiveinsparpotenzial/monattestproduktit1000 %10100\xa0€'
+
+======================================================================
+FAIL: test_configuration_malformed_import_is_atomic (test_app.BrowserTests.test_configuration_malformed_import_is_atomic)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/sharepoint-webpart/Copilot-FinOps/tests/test_app.py", line 254, in test_configuration_malformed_import_is_atomic
+    self.assertEqual(self.page.locator("#prev").inner_text(), before)
+AssertionError: '{\n [509 chars]h": "replaced",\n  "CatalogPath": "lizenzkatal[710 chars]"\n}' != '{\n [509 chars]h": "keep-me",\n  "CatalogPath": "lizenzkatalo[707 chars]"\n}'
+Diff is 1667 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_configuration_offline_source_without_tenant_credentials (test_app.BrowserTests.test_configuration_offline_source_without_tenant_credentials)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/sharepoint-webpart/Copilot-FinOps/tests/test_app.py", line 227, in test_configuration_offline_source_without_tenant_credentials
+    expect(self.page.locator("#status .e")).to_have_count(0)
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/playwright/sync_api/_generated.py", line 22365, in to_have_count
+    self._sync(
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/playwright/_impl/_assertions.py", line 465, in to_have_count
+    await self._expect_impl(
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/playwright/_impl/_assertions.py", line 128, in _expect_impl
+    _record_soft_or_raise(
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/playwright/_impl/_assertions.py", line 60, in _record_soft_or_raise
+    raise error
+AssertionError: Locator expected to have count '0'
+Actual value: 3 
+Call log:
+  - Expect "to_have_count" with timeout 5000ms
+  - waiting for locator("#status .e")
+    14 × locator resolved to 3 elements
+       - unexpected value "3"
+
+
+----------------------------------------------------------------------
+Ran 7 tests in 9.373s
+
+FAILED (failures=7)

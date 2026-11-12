@@ -1,0 +1,9 @@
+{
+  "facts": 12000,
+  "products": 120,
+  "elapsed_seconds": 0.836,
+  "expected_cost": 1200000,
+  "displayed_cost": "1.200.000,00 €",
+  "browser_errors": [],
+  "note": "Single local smoke measurement including file upload and render; not a representative performance guarantee."
+}
